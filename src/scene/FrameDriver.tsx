@@ -22,6 +22,7 @@ const WARMUP_MS = 3000;
 export function FrameDriver() {
   const invalidate = useThree((s) => s.invalidate);
   const clock = useThree((s) => s.clock);
+  const gl = useThree((s) => s.gl);
   const until = useRef(0);
 
   useEffect(() => {
@@ -65,7 +66,14 @@ export function FrameDriver() {
   }, [invalidate, clock]);
 
   useFrame(() => {
-    if (performance.now() < until.current) invalidate();
+    const active = performance.now() < until.current;
+    if (active) invalidate();
+    // Perf: shadow casters only move/appear when the store changes (which keeps `until` open). While the
+    // camera merely orbits or zooms, re-use the existing shadow map instead of re-rendering every caster.
+    if (gl.shadowMap.enabled) {
+      gl.shadowMap.autoUpdate = false;
+      gl.shadowMap.needsUpdate = active;
+    }
   });
 
   return null;

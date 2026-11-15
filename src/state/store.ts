@@ -22,7 +22,7 @@ import type {
 } from '@/types';
 import { createDefaultWorkspace } from './defaultWorkspace';
 
-export type Quality = 'high' | 'performance';
+export type Quality = 'high' | 'medium' | 'performance';
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';
 export interface Toast {
   id: number;
@@ -57,7 +57,12 @@ function loadSettings(): Settings {
     if (!s) return fallback;
     const p = JSON.parse(s) as Partial<Settings>;
     return {
-      quality: p.quality === 'performance' ? 'performance' : 'high',
+      quality:
+        p.quality === 'performance'
+          ? 'performance'
+          : p.quality === 'medium'
+            ? 'medium'
+            : 'high',
       snap: p.snap !== false,
     };
   } catch {
@@ -316,7 +321,14 @@ export const useStore = create<Store>((set, get) => {
     setQuality: (q) => {
       set({ quality: q });
       persistSettings(q, get().snap);
-      get().notify(q === 'high' ? 'High quality rendering' : 'Performance mode', 'info');
+      get().notify(
+        q === 'high'
+          ? 'High quality rendering'
+          : q === 'medium'
+            ? 'Medium quality rendering'
+            : 'Performance mode',
+        'info',
+      );
     },
     setSnap: (v) => {
       set({ snap: v });

@@ -81,7 +81,7 @@ export function LinkHint() {
 
 export function Hint() {
   return (
-    <p className="pointer-events-none absolute bottom-3 left-1/2 z-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/25 px-3 py-1 text-xs text-neutral-100/90 backdrop-blur max-lg:hidden">
+    <p className="pointer-events-none absolute bottom-3 left-1/2 z-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/40 px-3 py-1 text-xs text-neutral-100/90 max-lg:hidden">
       Drag blocks to move · drag from a connector to link · drag the ground to orbit · right-drag to pan · scroll to zoom
     </p>
   );

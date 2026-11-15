@@ -6,9 +6,9 @@ import type { Quality } from '@/state/store';
  *
  * Techniques that are actually implemented (see README "Rendering"):
  *  - PBR materials (MeshPhysicalMaterial) with a procedural studio environment (PMREM probe)
- *  - Directional key light with PCF soft shadow maps (high quality only)
+ *  - Directional key light with PCF soft shadow maps (high and medium quality)
  *  - Ground: analytic SDF *ray-marched* soft shadow and ambient occlusion evaluated in the ground shader
- *  - N8AO screen-space ambient occlusion, MSAA, ACES tone mapping, subtle vignette (high quality only)
+ *  - N8AO screen-space ambient occlusion, MSAA, ACES tone mapping, subtle vignette (high and medium quality)
  *
  * NOT implemented: hardware ray tracing (WebGL exposes none), screen-space reflections, temporal accumulation.
  */
@@ -27,6 +27,10 @@ export interface QualitySettings {
   multisampling: number;
   dpr: [number, number];
   ao: 'medium' | 'high';
+  /** Run the N8AO pass at half resolution with depth-aware upsampling. */
+  aoHalfRes: boolean;
+  /** Skip N8AO transparent-object re-render passes. */
+  aoSkipTransparency: boolean;
 }
 
 export const QUALITY: Record<Quality, QualitySettings> = {
@@ -37,6 +41,20 @@ export const QUALITY: Record<Quality, QualitySettings> = {
     multisampling: 4,
     dpr: [1, 2],
     ao: 'high',
+    aoHalfRes: false,
+    aoSkipTransparency: false,
+  },
+  medium: {
+    shadows: true,
+    // 1024 is plenty for the 12x12 shadow frustum; the map is also only re-rendered when the scene changes.
+    shadowMapSize: 1024,
+    postprocessing: true,
+    // 2x MSAA + a 1.5 DPR cap cuts fill-rate and bandwidth by more than half on HiDPI screens.
+    multisampling: 2,
+    dpr: [1, 1.5],
+    ao: 'medium',
+    aoHalfRes: true,
+    aoSkipTransparency: true,
   },
   performance: {
     shadows: false,
@@ -45,5 +63,7 @@ export const QUALITY: Record<Quality, QualitySettings> = {
     multisampling: 0,
     dpr: [1, 1],
     ao: 'medium',
+    aoHalfRes: true,
+    aoSkipTransparency: true,
   },
 };

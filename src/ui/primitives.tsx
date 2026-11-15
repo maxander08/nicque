@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/utils/cn';
 
 export const panelClass =
-  'rounded-2xl border border-white/10 bg-neutral-950/72 text-neutral-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl';
+  'rounded-2xl border border-white/10 bg-neutral-950/88 text-neutral-100 shadow-[0_10px_40px_rgba(0,0,0,0.35)]';
 
 export function IconButton({
   className,

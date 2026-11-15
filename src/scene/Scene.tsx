@@ -1,3 +1,4 @@
+import { Bvh } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, Color, FogExp2 } from 'three';
 import { InteractionController } from '@/interactions/InteractionController';
@@ -15,9 +16,12 @@ function Modules() {
   const ids = useStore((s) => s.workspace.modules.map((m) => m.id).join('\u0000'));
   return (
     <group name="pickRoot">
-      {ids.split('\u0000').map((id) => (
-        <ModuleView key={id} moduleId={id} />
-      ))}
+      {/* Perf: BVH-accelerated raycasts so hover/drag picking never brute-forces the bevelled housings. */}
+      <Bvh>
+        {ids.split('\u0000').map((id) => (
+          <ModuleView key={id} moduleId={id} />
+        ))}
+      </Bvh>
     </group>
   );
 }

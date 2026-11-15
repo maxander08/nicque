@@ -132,6 +132,7 @@ export function TopBar() {
           onChange={setQuality}
           options={[
             { value: 'high', label: 'High' },
+            { value: 'medium', label: 'Medium' },
             { value: 'performance', label: 'Fast' },
           ]}
         />
