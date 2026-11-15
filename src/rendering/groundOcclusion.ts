@@ -117,8 +117,20 @@ export function patchGroundShader(shader: WebGLProgramParametersWithUniforms, u:
       /* glsl */ `
       {
         vec3 nqP = vec3(vNqWP.x, 0.0, vNqWP.z);
-        float nqS = nqSoftShadow(nqP, normalize(uNqLightDir));
-        float nqA = nqAO(nqP);
+        vec3 nqL = normalize(uNqLightDir);
+        // Exact early-out: far from every housing both terms are provably 1.0, so skip the ray march.
+        //  - AO samples at most 0.312 above the ground; the field is 1-Lipschitz, so d0 >= 0.65 gives occ <= 0.
+        //  - The penumbra term only drops below 1 if the ray comes within t/6.5 of a box; boxes are <= uNqHeight
+        //    tall, which bounds t and therefore the ground distance d0 at which any occlusion can occur.
+        float nqD0 = nqMap(nqP);
+        float nqSlope = nqL.y - 1.0 / 6.5;
+        float nqCut = nqSlope > 0.05 ? max(0.65, uNqHeight / nqSlope * (1.0 + 1.0 / 6.5) * 1.05) : 1e9;
+        float nqS = 1.0;
+        float nqA = 1.0;
+        if (nqD0 < nqCut) {
+          nqS = nqSoftShadow(nqP, nqL);
+          nqA = nqAO(nqP);
+        }
         outgoingLight *= mix(1.0, mix(0.5, 1.0, nqS) * nqA, uNqStrength);
       }
       #include <opaque_fragment>`,

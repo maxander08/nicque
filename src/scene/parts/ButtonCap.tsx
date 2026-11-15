@@ -67,10 +67,16 @@ export const ButtonCap = memo(function ButtonCap({ moduleId, action, x, z, radiu
   const ringMat = useMemo(() => new MeshBasicMaterial({ color: '#ffe9c4', toneMapped: false }), []);
   const iconTex = getIconTexture(icon);
 
-  useFrame(() => {
+  useFrame(({ invalidate }) => {
     pressedRef.current = useStore.getState().pressed === key;
     const g = group.current;
-    if (g) g.position.y += ((pressedRef.current ? -0.012 : 0) - g.position.y) * 0.4;
+    if (g) {
+      const target = pressedRef.current ? -0.012 : 0;
+      g.position.y += (target - g.position.y) * 0.4;
+      // keep rendering until the cap has visibly settled (sub-0.02 mm), then snap
+      if (Math.abs(target - g.position.y) > 2e-5) invalidate();
+      else g.position.y = target;
+    }
     ringMat.opacity = glow ? 1 : 0;
     ringMat.visible = !!glow;
   });

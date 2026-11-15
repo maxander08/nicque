@@ -18,7 +18,7 @@ const PAN_RADIUS = 12;
 
 export function CameraRig() {
   const controls = useRef<OrbitControlsImpl>(null);
-  const { camera, size } = useThree();
+  const { camera, size, invalidate } = useThree();
   const resetNonce = useStore((s) => s.cameraResetNonce);
   const anim = useRef<{ pos: Vector3; target: Vector3 } | null>(null);
 
@@ -39,14 +39,16 @@ export function CameraRig() {
     const c = camera as PerspectiveCamera;
     c.fov = size.width / size.height < 1 ? 38 : 30;
     c.updateProjectionMatrix();
-  }, [camera, size.width, size.height]);
+    invalidate();
+  }, [camera, size.width, size.height, invalidate]);
 
-  useFrame((_, dt) => {
+  useFrame(({ invalidate }, dt) => {
     const c = controls.current;
     if (!c) return;
     const a = anim.current;
     if (a) {
-      const k = 1 - Math.exp(-dt * 7);
+      invalidate();
+      const k = 1 - Math.exp(-Math.min(dt, 0.05) * 7);
       camera.position.lerp(a.pos, k);
       c.target.lerp(a.target, k);
       if (camera.position.distanceTo(a.pos) < 0.005 && c.target.distanceTo(a.target) < 0.005) {

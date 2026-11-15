@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo } from 'react';
 import { CanvasTexture, SRGBColorSpace } from 'three';
 import { SCREEN_FONT, drawIcon, type IconName } from '@/materials/screens';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
+import { useThree } from '@react-three/fiber';
 import { useFontsReady } from '../hooks';
 
 const TOP = BLOCK_HEIGHT;
@@ -30,6 +31,7 @@ export const LabelDecal = memo(function LabelDecal({
   weight = 600,
 }: LabelProps) {
   const fonts = useFontsReady();
+  const invalidate = useThree((s) => s.invalidate);
   const tex = useMemo(() => {
     const c = document.createElement('canvas');
     c.width = 512;
@@ -50,7 +52,8 @@ export const LabelDecal = memo(function LabelDecal({
     (ctx as unknown as { letterSpacing: string }).letterSpacing = `${Math.round(c.height * 0.12)}px`;
     ctx.fillText(text, c.width / 2, c.height / 2 + 2);
     tex.needsUpdate = true;
-  }, [tex, text, color, weight, fonts]);
+    invalidate();
+  }, [tex, text, color, weight, fonts, invalidate]);
   useEffect(() => () => tex.dispose(), [tex]);
   return (
     <mesh position={[x, TOP + 0.0012, z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>

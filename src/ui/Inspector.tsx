@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MAX_TEXT_LENGTH, MODULE_DEFINITIONS } from '@/modules/definitions';
+import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
 import { IconButton, Segmented, StateMark, Switch, panelClass, stateLabel } from './primitives';
 import { cn } from '@/utils/cn';
@@ -7,10 +8,11 @@ import { cn } from '@/utils/cn';
 /** Contextual configuration for the selected block. */
 export function Inspector() {
   const selectedId = useStore((s) => s.selectedId);
-  const module = useStore((s) => s.workspace.modules.find((m) => m.id === s.selectedId));
+  const workspace = useLogicWorkspace();
+  const module = workspace.modules.find((m) => m.id === selectedId);
   const rt = useStore((s) => (s.selectedId ? s.runtime.modules[s.selectedId] : undefined));
-  const connections = useStore((s) => s.workspace.connections);
-  const modules = useStore((s) => s.workspace.modules);
+  const connections = workspace.connections;
+  const modules = workspace.modules;
   const runtimeConns = useStore((s) => s.runtime.connections);
   const focusNonce = useStore((s) => s.focusTextNonce);
   const { select, setText, setPower, setAlign, rotateModule, disconnect } = useStore.getState();

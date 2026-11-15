@@ -6,6 +6,7 @@ import { useStore } from '@/state/store';
 import { Cables, LinkPreview } from './Cables';
 import { CameraRig } from './CameraRig';
 import { Effects } from './Effects';
+import { FrameDriver } from './FrameDriver';
 import { Ground } from './Ground';
 import { Lighting } from './Lighting';
 import { ModuleView } from './modules/ModuleView';
@@ -30,6 +31,7 @@ export function Scene() {
     <Canvas
       // Remount when the quality mode changes so the GL context gets the right anti-aliasing setup.
       key={quality}
+      frameloop="demand"
       shadows={q.shadows ? 'percentage' : false}
       dpr={q.dpr}
       camera={{ fov: 30, near: 0.2, far: 1600, position: [0, 6, 5] }}
@@ -51,6 +53,7 @@ export function Scene() {
       <Cables />
       <LinkPreview />
       <CameraRig />
+      <FrameDriver />
       <InteractionController />
       {q.postprocessing && <Effects q={q} />}
     </Canvas>

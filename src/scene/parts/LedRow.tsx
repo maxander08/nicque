@@ -43,10 +43,11 @@ export const LedRow = memo(function LedRow({ count, span, z, level, color = '#d7
     settled.current = false;
   }, [level]);
 
-  useFrame((_, dt) => {
+  useFrame(({ invalidate }, dt) => {
     const mesh = ref.current;
     if (!mesh || settled.current) return;
-    current.current += (level - current.current) * Math.min(1, dt * 5);
+    invalidate();
+    current.current += (level - current.current) * Math.min(1, Math.min(dt, 0.05) * 5);
     if (Math.abs(level - current.current) < 0.002) {
       current.current = level;
       settled.current = true;

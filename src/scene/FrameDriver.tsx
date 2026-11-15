@@ -1,0 +1,72 @@
+import { useEffect, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useStore } from '@/state/store';
+
+/** How long (ms) the loop keeps rendering after the last change, so eased animations can settle. */
+const SETTLE_MS = 1500;
+/** Extra warm-up on mount: environment probe, textures and shader compilation. */
+const WARMUP_MS = 3000;
+
+/**
+ * Drives the on-demand render loop (`frameloop="demand"`).
+ *
+ * The scene is static unless something changes, so instead of redrawing 60x per second forever (ray-marched
+ * ground, N8AO, MSAA...) a frame is requested only when:
+ *  - the store changes in a way the scene can show (modules, runtime, selection, drag, press, camera reset…),
+ *  - fonts finish loading (canvas textures are repainted),
+ *  - the window or canvas is resized (handled by R3F), or the orbit controls move (handled by drei),
+ *  - an animation reports it has not settled (those call `invalidate()` themselves).
+ *
+ * Visuals and logic are identical to continuous rendering; only idle GPU/CPU work disappears.
+ */
+export function FrameDriver() {
+  const invalidate = useThree((s) => s.invalidate);
+  const clock = useThree((s) => s.clock);
+  const until = useRef(0);
+
+  useEffect(() => {
+    const bump = (ms: number) => {
+      // Waking from idle: drop the idle gap so the first frame's delta is one frame, not seconds.
+      if (performance.now() >= until.current) clock.getDelta();
+      until.current = Math.max(until.current, performance.now() + ms);
+      invalidate();
+    };
+
+    bump(WARMUP_MS);
+
+    const unsub = useStore.subscribe((s, p) => {
+      if (
+        s.workspace !== p.workspace ||
+        s.runtime !== p.runtime ||
+        s.selectedId !== p.selectedId ||
+        s.snap !== p.snap ||
+        s.cameraResetNonce !== p.cameraResetNonce ||
+        s.pressed !== p.pressed ||
+        s.linkDrag !== p.linkDrag ||
+        s.draggingId !== p.draggingId
+      ) {
+        bump(SETTLE_MS);
+      }
+    });
+
+    const onFonts = () => bump(800);
+    const fonts = document.fonts;
+    fonts?.addEventListener?.('loadingdone', onFonts);
+    const onVisible = () => {
+      if (!document.hidden) bump(300);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      unsub();
+      fonts?.removeEventListener?.('loadingdone', onFonts);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [invalidate, clock]);
+
+  useFrame(() => {
+    if (performance.now() < until.current) invalidate();
+  });
+
+  return null;
+}

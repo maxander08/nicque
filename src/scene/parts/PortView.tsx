@@ -51,7 +51,7 @@ export const PortView = memo(function PortView({ moduleId, port }: { moduleId: s
   state.current = { linkState, candidate };
   const tmp = useMemo(() => new Color(), []);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, invalidate }) => {
     const { linkState: ls, candidate: cd } = state.current;
     const base = COLORS[port.type];
     if (cd === 'valid') {
@@ -67,6 +67,13 @@ export const PortView = memo(function PortView({ moduleId, port }: { moduleId: s
       tmp.copy(COLORS.off);
     }
     led.color.lerp(tmp, 0.25);
+    // the valid-target pulse never settles; the colour ease settles once within ~1/1000 of the target
+    if (
+      cd === 'valid' ||
+      Math.abs(led.color.r - tmp.r) + Math.abs(led.color.g - tmp.g) + Math.abs(led.color.b - tmp.b) > 1e-3
+    ) {
+      invalidate();
+    }
   });
 
   const yaw = Math.atan2(-port.normal.z, port.normal.x);

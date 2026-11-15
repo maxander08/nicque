@@ -119,10 +119,16 @@ export function getMaterials(): Materials {
   return cached;
 }
 
+let dotTextures: { albedo: Texture; bump: Texture } | null = null;
+
+/** The 80x80 LED lattice textures are identical for every screen: paint them once. */
+function getDotTextures() {
+  return (dotTextures ??= { albedo: makeDotAlbedo(512, 80), bump: makeDotBump(512, 80) });
+}
+
 /** LED pad (silicone) material factory: one per screen because each owns its emissive texture. */
 export function makeSiliconeMaterial(emissiveMap: Texture) {
-  const albedo = makeDotAlbedo(512, 80);
-  const bump = makeDotBump(512, 80);
+  const { albedo, bump } = getDotTextures();
   return {
     material: new MeshPhysicalMaterial({
       map: albedo,
@@ -137,9 +143,7 @@ export function makeSiliconeMaterial(emissiveMap: Texture) {
       clearcoat: 0.25,
       clearcoatRoughness: 0.45,
     }),
-    dispose: () => {
-      albedo.dispose();
-      bump.dispose();
-    },
+    // the dot lattice textures are shared and cached (expensive to paint), so there is nothing per-screen to free
+    dispose: () => undefined,
   };
 }

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { missingLinks } from '@/connections/suggest';
+import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
 import { cn } from '@/utils/cn';
 import { StateMark, Switch, panelClass, stateLabel } from './primitives';
 
 /** Compact runtime / connection status with the master power control. */
 export function StatusPanel() {
-  const workspace = useStore((s) => s.workspace);
+  const workspace = useLogicWorkspace();
   const runtime = useStore((s) => s.runtime);
   const select = useStore((s) => s.select);
   const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 768);
