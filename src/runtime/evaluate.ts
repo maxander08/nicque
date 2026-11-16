@@ -1,3 +1,4 @@
+import { outputKind } from '@/connections/compat';
 import { validateConnection } from '@/connections/validate';
 import { OPERATORS, isInteger, isOperatorType } from '@/modules/definitions';
 import type {
@@ -89,6 +90,77 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     if (m.type === 'integer' && powered.get(m.id)) textOut.set(m.id, isInteger(m.config.value) ? m.config.value : '');
   }
 
+  // Operator blocks (Adder, Subtractor, Multiplier, Divisor): evaluate the two operand pins (`data-in`, `data-in-2`)
+  // from whatever feeds them and publish the result like any other source. Operators may feed operators, so this is
+  // resolved depth-first (validation already refuses loops; `visiting` is only a safety net).
+  const opReason = new Map<string, string>(); // why an operator has no result right now
+  const opDone = new Set<string>();
+  const visiting = new Set<string>();
+  const MAX_TEXT = 10000;
+  const dataLinksValid = valid.filter((c) => c.type === 'text');
+  const graph = { modules: ws.modules, connections: valid };
+
+  const resolveOutput = (id: string): string | undefined => {
+    const m = byId.get(id);
+    if (m && isOperatorType(m.type) && !opDone.has(id)) evaluateOperator(m);
+    return textOut.get(id);
+  };
+
+  const evaluateOperator = (m: ModuleRecord) => {
+    if (visiting.has(m.id)) return;
+    visiting.add(m.id);
+    try {
+      if (powered.get(m.id) !== true) return;
+      const opName = OPERATORS[m.type as OperatorType].label;
+      const operands: { value: string; kind: 'text' | 'integer'; from: string }[] = [];
+      for (const portId of ['data-in', 'data-in-2']) {
+        const link = dataLinksValid.find((c) => c.to.moduleId === m.id && c.to.portId === portId);
+        if (!link) {
+          opReason.set(m.id, `${opName} needs both operand inputs linked.`);
+          return;
+        }
+        const src = byId.get(link.from.moduleId);
+        const value = src ? resolveOutput(src.id) : undefined;
+        if (!src || value === undefined) {
+          opReason.set(m.id, `${src?.name ?? 'The linked block'} is not operational.`);
+          return;
+        }
+        operands.push({ value, kind: outputKind(graph, src), from: src.name });
+      }
+      const [a, b] = operands;
+      for (const o of operands) {
+        if (o.kind === 'integer' && !isInteger(o.value)) {
+          opReason.set(m.id, `${o.from} does not hold a complete whole number yet.`);
+          return;
+        }
+      }
+      let result: string | undefined;
+      if (m.type === 'adder') {
+        result = a.kind === 'integer' && b.kind === 'integer' ? (BigInt(a.value) + BigInt(b.value)).toString() : a.value + b.value;
+      } else if (m.type === 'subtractor') {
+        result = (BigInt(a.value) - BigInt(b.value)).toString();
+      } else if (m.type === 'multiplier') {
+        if (a.kind === 'integer' && b.kind === 'integer') {
+          result = (BigInt(a.value) * BigInt(b.value)).toString();
+        } else {
+          const text = a.kind === 'text' ? a : b;
+          const count = BigInt((a.kind === 'text' ? b : a).value);
+          if (count < 0n) opReason.set(m.id, 'Text cannot be repeated a negative number of times.');
+          else if (count * BigInt(text.value.length) > BigInt(MAX_TEXT)) opReason.set(m.id, 'The repeated text would be too long.');
+          else result = text.value.repeat(Number(count));
+        }
+      } else if (m.type === 'divisor') {
+        if (BigInt(b.value) === 0n) opReason.set(m.id, 'Cannot divide by zero.');
+        else result = (BigInt(a.value) / BigInt(b.value)).toString(); // whole numbers: truncates toward zero
+      }
+      if (result !== undefined) textOut.set(m.id, result);
+    } finally {
+      visiting.delete(m.id);
+      opDone.add(m.id);
+    }
+  };
+  for (const m of ws.modules) if (isOperatorType(m.type)) resolveOutput(m.id);
+
   /* 5. data transfer --------------------------------------------------- */
   const dataInto = new Map<string, { value: string } | { missing: string }>();
   for (const c of valid) {
@@ -97,7 +169,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     const dstPowered = powered.get(c.to.moduleId) === true;
     const active = srcOut !== undefined && dstPowered;
     let reason = 'Transferring text';
-    if (srcOut === undefined) reason = 'Source block is not operational';
+    if (srcOut === undefined) reason = opReason.get(c.from.moduleId) ?? 'Source block is not operational';
     else if (!dstPowered) reason = 'Destination block is not powered';
     connRuntime[c.id] = { id: c.id, valid: true, active, reason };
     if (srcOut !== undefined) {
@@ -105,7 +177,9 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         dataInto.set(c.to.moduleId, { value: srcOut });
       }
     } else if (!dataInto.has(c.to.moduleId)) {
-      dataInto.set(c.to.moduleId, { missing: 'The linked Text Block is not operational.' });
+      dataInto.set(c.to.moduleId, {
+        missing: opReason.get(c.from.moduleId) ?? 'The linked Text Block is not operational.',
+      });
     }
   }
 
