@@ -1,17 +1,38 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { missingLinks } from '@/connections/suggest';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { linkLabel, useStore } from '@/state/store';
 import { cn } from '@/utils/cn';
-import { StateMark, Switch, panelClass, stateLabel } from './primitives';
+import { StateMark, Switch, panelClass } from './primitives';
 
 /** Compact runtime / connection status with the master power control. */
 export function StatusPanel() {
   const workspace = useLogicWorkspace();
   const runtime = useStore((s) => s.runtime);
   const select = useStore((s) => s.select);
-  const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 768);
   const { setPower, disconnect, linkModules } = useStore.getState();
+
+  // The drawer slides in while the pointer is at the right edge (or over the drawer). The handle also toggles
+  // it, so touch and keyboard users can open it too.
+  const [hover, setHover] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const open = hover || pinned;
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const enter = useCallback(() => {
+    clearTimeout(timer.current);
+    setHover(true);
+  }, []);
+  const leave = useCallback(() => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setHover(false), 280);
+  }, []);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (!pinned) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPinned(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pinned]);
 
   const names = useMemo(() => new Map(workspace.modules.map((m) => [m.id, m.name])), [workspace.modules]);
   const missing = useMemo(() => missingLinks(workspace), [workspace]);
@@ -19,36 +40,68 @@ export function StatusPanel() {
   const ok = runtime.systemOk && missing.length === 0;
 
   return (
-    <section
-      aria-label="System status"
-      className={cn(
-        panelClass,
-        'pointer-events-auto absolute bottom-3 left-3 z-10 w-[310px]',
-        'max-md:bottom-auto max-md:left-2 max-md:top-14 max-md:w-[min(310px,calc(100%-1rem))]',
-      )}
-    >
+    <>
+      {/* invisible hot zone along the whole right edge */}
+      <div aria-hidden onPointerEnter={enter} onPointerLeave={leave} className="pointer-events-auto absolute inset-y-0 right-0 z-30 w-3" />
+
+      {/* handle: a slim tab that hints at the drawer, tinted by the system state */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setPinned((v) => !v)}
+        onPointerEnter={enter}
+        onPointerLeave={leave}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-white/80"
+        aria-controls="status-drawer"
+        aria-label={`${ok ? 'System operational' : 'Attention needed'}. Toggle status panel`}
+        className={cn(
+          'pointer-events-auto absolute right-0 top-1/2 z-30 flex h-24 w-[7px] -translate-y-1/2 items-start justify-center rounded-l-full pt-2',
+          'bg-white/30 transition-all duration-200 hover:w-[10px] hover:bg-white/50 focus-visible:w-[10px] focus-visible:outline-2 focus-visible:outline-white/80',
+          open && 'pointer-events-none opacity-0',
+        )}
       >
-        <span className="flex items-center gap-2 text-[13px] font-semibold">
-          <StateMark state={ok ? 'operational' : 'waiting'} />
-          <span role="status" aria-live="polite">
-            {ok ? 'System operational' : 'Attention needed'}
-          </span>
-        </span>
-        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden className={cn('transition-transform', open && 'rotate-180')}>
-          <path d="M2 4.5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-        </svg>
+        <span className={cn('h-1.5 w-1.5 rounded-full', ok ? 'bg-emerald-300' : 'bg-amber-300')} />
       </button>
 
-      {open && (
-        <div className="space-y-3 border-t border-white/10 px-4 pb-3 pt-3">
+      <section
+        id="status-drawer"
+        aria-label="System status"
+        inert={!open}
+        onPointerEnter={enter}
+        onPointerLeave={leave}
+        onFocus={enter}
+        className={cn(
+          panelClass,
+          'absolute bottom-auto right-3 top-16 z-30 flex max-h-[calc(100%-5.5rem)] w-[330px] flex-col overflow-hidden',
+          'max-md:right-2 max-md:w-[min(330px,calc(100%-1rem))]',
+          'transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none',
+          open ? 'pointer-events-auto translate-x-0 opacity-100' : 'pointer-events-none translate-x-[calc(100%+1.5rem)] opacity-0',
+        )}
+      >
+        <header className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <span className="flex items-center gap-2 text-[13px] font-semibold">
+            <StateMark state={ok ? 'operational' : 'waiting'} />
+            <span role="status" aria-live="polite">
+              {ok ? 'System operational' : 'Attention needed'}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setPinned(false);
+              setHover(false);
+            }}
+            aria-label="Close status panel"
+            className="-mr-1.5 flex h-7 w-7 items-center justify-center rounded-md text-neutral-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white/80"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+              <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
+        </header>
+        <div className="space-y-3 overflow-y-auto px-4 pb-4 pt-3">
           {powers.map((p) => (
             <div key={p.id} className="flex items-center justify-between">
-              <span className="text-[13px] font-medium">{p.name}</span>
+              <span className="text-[13px] font-medium">{p.name} <span className="text-xs font-normal text-neutral-400">supply</span></span>
               <div className="flex items-center gap-3">
                 <span className="text-[13px] text-neutral-300">{p.config.enabled ? 'On' : 'Off'}</span>
                 <Switch
@@ -65,21 +118,21 @@ export function StatusPanel() {
               .filter((m) => m.type !== 'power')
               .map((m) => {
                 const r = runtime.modules[m.id];
+                const on = m.switchedOff !== true;
                 return (
-                  <li key={m.id}>
+                  <li key={m.id} className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => select(m.id)}
-                      className="flex w-full items-center justify-between gap-2 rounded-md px-1.5 py-1 text-left text-[13px] hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-white/80"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-1.5 py-1 text-left text-[13px] hover:bg-white/8 focus-visible:outline-2 focus-visible:outline-white/80"
                     >
-                      <span className="flex items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         <StateMark state={r.state} />
-                        {m.name}
+                        <span className="truncate">{m.name.replace(' Block', '')}</span>
                       </span>
-                      <span className="text-xs text-neutral-300">
-                        {stateLabel[r.state]} · {r.summary}
-                      </span>
+                      <span className="shrink-0 text-xs text-neutral-300">{r.summary}</span>
                     </button>
+                    <Switch checked={on} onChange={(v) => setPower(m.id, v)} label={`${m.name} power ${on ? 'on' : 'off'}`} />
                   </li>
                 );
               })}
@@ -132,7 +185,7 @@ export function StatusPanel() {
             </ul>
           </div>
         </div>
-      )}
-    </section>
+      </section>
+    </>
   );
 }

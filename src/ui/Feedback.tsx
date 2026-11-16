@@ -79,10 +79,13 @@ export function LinkHint() {
   );
 }
 
+/** Controls cheat-sheet: quiet text in the bottom-right corner, out of the way of the workspace. */
 export function Hint() {
   return (
-    <p className="pointer-events-none absolute bottom-3 left-1/2 z-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/40 px-3 py-1 text-xs text-neutral-100/90 max-lg:hidden">
-      Drag blocks to move · drag from a connector to link · drag the ground to orbit · right-drag to pan · scroll to zoom
+    <p className="pointer-events-none absolute bottom-3 right-4 z-0 whitespace-nowrap text-right text-[11px] leading-relaxed tracking-wide text-white/45 max-md:hidden">
+      Drag blocks to move · drag from a connector to link
+      <br />
+      Drag the ground to orbit · right-drag to pan · scroll to zoom
     </p>
   );
 }

@@ -39,6 +39,11 @@ interface ModuleBase {
   position: Vec2;
   /** Yaw in quarter turns (0..3). */
   rotation: number;
+  /**
+   * The block's own power button: true while it has been switched off by hand, even though it may still be
+   * wired to a live Power Block. (A Power Block uses `config.enabled` instead.)
+   */
+  switchedOff?: boolean;
 }
 
 export type PowerModule = ModuleBase & { type: 'power'; config: PowerConfig };

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { MODULE_DEFINITIONS } from '@/modules/definitions';
+import { LED_BAND } from '@/modules/layout';
 import { useStore } from '@/state/store';
 import { Housing } from '../parts/Housing';
 import { BUTTON_RADIUS, ButtonCap, buttonHole } from '../parts/ButtonCap';
@@ -34,7 +35,7 @@ export function PowerBlockView({ moduleId }: { moduleId: string }) {
         glow={on}
         label="Power button"
       />
-      <PowerLed width={def.width} depth={def.depth} powered={on} />
+      <PowerLed width={def.width} depth={def.depth} powered={on} header={LED_BAND} />
       <BlockBadge name="Power" x={BADGE_X} z={BUTTON.z} />
     </group>
   );

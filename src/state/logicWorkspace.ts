@@ -9,7 +9,7 @@ function sameLogic(a: Workspace, b: Workspace): boolean {
   for (let i = 0; i < a.modules.length; i++) {
     const x = a.modules[i];
     const y = b.modules[i];
-    if (x !== y && (x.id !== y.id || x.type !== y.type || x.name !== y.name || x.config !== y.config)) return false;
+    if (x !== y && (x.id !== y.id || x.type !== y.type || x.name !== y.name || x.config !== y.config || x.switchedOff !== y.switchedOff)) return false;
   }
   return true;
 }

@@ -51,6 +51,11 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
       powered.set(m.id, m.config.enabled);
       continue;
     }
+    if (m.switchedOff) {
+      powered.set(m.id, false);
+      unpoweredReason.set(m.id, 'Switched off with its own power button.');
+      continue;
+    }
     const links = powerLinksInto(m.id);
     if (links.length === 0) {
       powered.set(m.id, false);
@@ -124,6 +129,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   const modules: Record<string, ModuleRuntime> = {};
   for (const m of ws.modules) {
     const isPowered = powered.get(m.id) === true;
+    const manualOff = m.type !== 'power' && m.switchedOff === true;
     let rt: ModuleRuntime;
 
     if (m.type === 'power') {
@@ -156,13 +162,13 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
       rt = {
         id: m.id,
         type: 'text',
-        state: isPowered ? 'operational' : 'unpowered',
+        state: isPowered ? 'operational' : manualOff ? 'off' : 'unpowered',
         powered: isPowered,
-        summary: isPowered ? 'Operational' : 'No power',
+        summary: isPowered ? 'Operational' : manualOff ? 'Off' : 'No power',
         detail: isPowered
           ? (typing ? 'Typing from a Keyboard or Keypad Block. ' : '') +
             (targets === 0
-              ? 'Operational. Its output is not linked to a display.'
+              ? 'Operational. It has no screen of its own: link its output to a Display Block to see the text.'
               : `Operational. Sending text to ${targets} ${targets === 1 ? 'display' : 'displays'}.`)
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen,
@@ -173,9 +179,9 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
       rt = {
         id: m.id,
         type: m.type,
-        state: isPowered ? 'operational' : 'unpowered',
+        state: isPowered ? 'operational' : manualOff ? 'off' : 'unpowered',
         powered: isPowered,
-        summary: !isPowered ? 'No power' : linked ? 'Typing' : 'Not linked',
+        summary: !isPowered ? (manualOff ? 'Off' : 'No power') : linked ? 'Typing' : 'Not linked',
         detail: !isPowered
           ? (unpoweredReason.get(m.id) ?? 'Not powered.')
           : linked
@@ -192,8 +198,8 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
       let detail: string;
       let screen: ScreenContent;
       if (!isPowered) {
-        state = 'unpowered';
-        summary = 'No power';
+        state = manualOff ? 'off' : 'unpowered';
+        summary = manualOff ? 'Off' : 'No power';
         detail = unpoweredReason.get(m.id) ?? 'Not powered.';
         screen = { kind: 'off' };
       } else if (!input) {

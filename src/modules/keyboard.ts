@@ -207,19 +207,37 @@ export function repeatInterval(pressure: number, profile: KeyPressure): number {
 
 /* ---- screen geometry ----------------------------------------------------------------------- */
 
-/** LED lattice pitch (px) of the keyboard screen texture and the lattice size in cells. */
+/**
+ * One key size for the whole system. The Keyboard and the Keypad share the same square key pitch (14 LED cells
+ * ≈ 0.31 world units), the same gap between keycaps, the same corner radius and the same legend size, so a key
+ * looks identical on either block. The pitch is the middle ground between the two former sizes (keyboard keys
+ * were 0.24 wide, keypad keys 0.41): neither block's keys feel cramped or oversized any more.
+ */
 export const KB_CELL_PX = 12;
-/** 173 cells × 0.022 = 3.806 wide: the screen window ends up EDGE (0.14) from both side borders of the 4.05 block. */
-export const KB_CELLS_X = 173;
-export const KB_CELLS_Y = 62;
+/** World size of one LED cell (shared with the Display Block's 80-cell lattice: 1.76 / 80). */
+export const LED_CELL = 0.022;
+export const KEY_PITCH_CELLS = 14;
+export const KEY_PITCH = KEY_PITCH_CELLS * KB_CELL_PX;
+/** Cells of bezel between the edge of an LED window and the outer keys. */
+export const KEY_PAD_CELLS = 3;
+const KEY_PAD = KEY_PAD_CELLS * KB_CELL_PX;
+export const KEY_GAP = 12;
+export const KEY_RADIUS = 18;
+export const KEY_LINE = 3;
+/** Legend sizes (texture pixels) used by both screens. */
+export const KEY_FONT = 70;
+export const KEY_FONT_SMALL = 40;
+
+/** Keyboard window: 15 key units wide, 5 rows tall, plus the bezel. */
+export const KB_CELLS_X = KEY_UNITS * KEY_PITCH_CELLS + KEY_PAD_CELLS * 2;
+export const KB_CELLS_Y = KEY_ROWS * KEY_PITCH_CELLS + KEY_PAD_CELLS * 2;
 export const KB_TEX_W = KB_CELLS_X * KB_CELL_PX;
 export const KB_TEX_H = KB_CELLS_Y * KB_CELL_PX;
 
-const PAD_X = 42;
-const PAD_Y = 30;
-const UNIT = (KB_TEX_W - PAD_X * 2) / KEY_UNITS;
-const ROW_H = (KB_TEX_H - PAD_Y * 2) / KEY_ROWS;
-export const KEY_GAP = 9;
+const PAD_X = KEY_PAD;
+const PAD_Y = KEY_PAD;
+const UNIT = KEY_PITCH;
+const ROW_H = KEY_PITCH;
 
 /** Outer cell of a key in texture pixels (no gap). */
 export function keyCell(k: KeyDef) {
@@ -245,19 +263,16 @@ export function keyAtUv(u: number, v: number): KeyDef | null {
 
 /* ---- keypad screen geometry ---------------------------------------------------------------- */
 
-/** The keypad screen has the same LED pitch as the keyboard; its window is a square of 80 × 80 cells. */
-export const KP_CELLS = 80;
-export const KP_TEX_W = KP_CELLS * KB_CELL_PX;
-export const KP_TEX_H = KP_CELLS * KB_CELL_PX;
-
-const KP_PAD = 30;
-const KP_CELL_W = (KP_TEX_W - KP_PAD * 2) / KEYPAD_COLS;
-const KP_CELL_H = (KP_TEX_H - KP_PAD * 2) / KEYPAD_ROWS;
-export const KP_KEY_GAP = 18;
+/** The keypad window is 4 × 4 keys of the very same pitch as the keyboard, plus the same bezel. */
+export const KP_CELLS_X = KEYPAD_COLS * KEY_PITCH_CELLS + KEY_PAD_CELLS * 2;
+export const KP_CELLS_Y = KEYPAD_ROWS * KEY_PITCH_CELLS + KEY_PAD_CELLS * 2;
+export const KP_TEX_W = KP_CELLS_X * KB_CELL_PX;
+export const KP_TEX_H = KP_CELLS_Y * KB_CELL_PX;
+export const KP_KEY_GAP = KEY_GAP;
 
 /** Outer cell of a keypad key in texture pixels (no gap). */
 export function padKeyCell(k: KeyDef) {
-  return { x: KP_PAD + k.x * KP_CELL_W, y: KP_PAD + k.row * KP_CELL_H, w: k.w * KP_CELL_W, h: KP_CELL_H };
+  return { x: KEY_PAD + k.x * KEY_PITCH, y: KEY_PAD + k.row * KEY_PITCH, w: k.w * KEY_PITCH, h: KEY_PITCH };
 }
 
 /** Visible keycap of a keypad key in texture pixels. */

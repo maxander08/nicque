@@ -2,18 +2,20 @@ import { useEffect, useMemo } from 'react';
 import { makeSiliconeMaterial } from '@/materials/library';
 import { drawKeyboardScreen } from '@/materials/screens';
 import { BLOCK_HEIGHT, MODULE_DEFINITIONS } from '@/modules/definitions';
-import { KB_CELLS_X, KB_CELLS_Y, KB_TEX_H, KB_TEX_W } from '@/modules/keyboard';
+import { KB_CELLS_X, KB_CELLS_Y, KB_TEX_H, KB_TEX_W, LED_CELL } from '@/modules/keyboard';
 import { useStore } from '@/state/store';
 import { useFontsReady, useScreenTexture } from '../hooks';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
+import { HeaderControls, headerHoles, useBlockOn, withPower } from '../parts/HeaderControls';
 import { PowerLed } from '../parts/PowerLed';
 import { badgeZ, contentTopZ } from '@/modules/layout';
 
 const def = MODULE_DEFINITIONS.keyboard;
+const CONTROLS = withPower();
 
 /** The LED lattice pitch is the Display Block's (1.76 world units over 80 cells), so both screens look alike. */
-const CELL = 1.76 / 80;
+const CELL = LED_CELL;
 export const KB_PLANE_W = KB_CELLS_X * CELL;
 export const KB_PLANE_H = KB_CELLS_Y * CELL;
 const WINDOW_D = KB_PLANE_H - 0.04;
@@ -31,14 +33,17 @@ function useDownSignature(moduleId: string) {
 
 export function KeyboardBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
-  const powered = useStore((s) => s.runtime.modules[moduleId]?.powered === true);
+  const powered = useBlockOn(moduleId);
   const shift = useStore((s) => s.kbMods[moduleId]?.shift ?? false);
   const caps = useStore((s) => s.kbMods[moduleId]?.caps ?? false);
   const downSig = useDownSignature(moduleId);
   const fonts = useFontsReady();
 
   const holes = useMemo(
-    () => [{ cx: 0, cz: WINDOW.cz, w: WINDOW.w, d: WINDOW.d, r: 0.07, lip: 0.015, segments: 8 }],
+    () => [
+      { cx: 0, cz: WINDOW.cz, w: WINDOW.w, d: WINDOW.d, r: 0.07, lip: 0.015, segments: 8 },
+      ...headerHoles(def.width, def.depth, CONTROLS),
+    ],
     [],
   );
 
@@ -83,6 +88,7 @@ export function KeyboardBlockView({ moduleId }: { moduleId: string }) {
       >
         <planeGeometry args={[KB_PLANE_W, KB_PLANE_H]} />
       </mesh>
+      <HeaderControls moduleId={moduleId} width={def.width} depth={def.depth} controls={CONTROLS} />
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
       <BlockBadge name="Keyboard" x={0} z={badgeZ(def.depth)} />
     </group>

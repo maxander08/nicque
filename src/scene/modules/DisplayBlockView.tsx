@@ -13,9 +13,13 @@ import { useStore } from '@/state/store';
 import { useFontsReady, useScreenTexture } from '../hooks';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
+import { HeaderControls, headerHoles, useBlockOn, withPower } from '../parts/HeaderControls';
 import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.display;
+
+/** Slot 0 is the power button, slot 1 (to its left) clears the screen. */
+const CONTROLS = withPower({ action: 'clear', icon: 'clear', label: 'Clear button' });
 
 /**
  * Same bezels as the Keyboard Block: the LED band above the window (power LED top-left), EDGE at both sides and
@@ -30,7 +34,7 @@ const WINDOW = { cz: contentTopZ(def.depth) + WINDOW_D / 2, w: PLANE_W - 0.04, d
 
 export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
-  const powered = useStore((s) => s.runtime.modules[moduleId]?.powered === true);
+  const powered = useBlockOn(moduleId);
   const align = useStore((s) => {
     const m = s.workspace.modules.find((x) => x.id === moduleId);
     return m && m.type === 'display' ? m.config.align : 'center';
@@ -38,7 +42,10 @@ export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   const fonts = useFontsReady();
 
   const holes = useMemo(
-    () => [{ cx: 0, cz: WINDOW.cz, w: WINDOW.w, d: WINDOW.d, r: 0.07, lip: 0.015, segments: 8 }],
+    () => [
+      { cx: 0, cz: WINDOW.cz, w: WINDOW.w, d: WINDOW.d, r: 0.07, lip: 0.015, segments: 8 },
+      ...headerHoles(def.width, def.depth, CONTROLS),
+    ],
     [],
   );
 
@@ -73,6 +80,7 @@ export function DisplayBlockView({ moduleId }: { moduleId: string }) {
       >
         <planeGeometry args={[PLANE_W, PLANE_H]} />
       </mesh>
+      <HeaderControls moduleId={moduleId} width={def.width} depth={def.depth} controls={CONTROLS} />
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
       <BlockBadge name="Display" x={0} z={badgeZ(def.depth)} />
     </group>

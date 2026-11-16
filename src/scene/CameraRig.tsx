@@ -10,7 +10,7 @@ const ELEVATION = (54 * Math.PI) / 180;
 
 /** Default camera: front-top view that shows all three blocks and their connectors. */
 export function defaultCameraPosition(aspect: number): Vector3 {
-  const dist = 9 * Math.pow(Math.max(1, 1.6 / aspect), 0.9);
+  const dist = 11 * Math.pow(Math.max(1, 1.6 / aspect), 0.9);
   return new Vector3(0, Math.sin(ELEVATION) * dist, Math.cos(ELEVATION) * dist).add(DEFAULT_TARGET);
 }
 

@@ -12,10 +12,12 @@ const port = (ws: ReturnType<typeof createDefaultWorkspace>, mid: string, pid: s
 };
 
 describe('connector geometry', () => {
-  it('default connectors are docked and face each other', () => {
+  it('default connectors are docked and face each other (the Text Block is powered by cable)', () => {
     const ws = createDefaultWorkspace();
     for (const c of ws.connections) {
-      expect(isDocked(port(ws, c.from.moduleId, c.from.portId), port(ws, c.to.moduleId, c.to.portId))).toBe(true);
+      const docked = isDocked(port(ws, c.from.moduleId, c.from.portId), port(ws, c.to.moduleId, c.to.portId));
+      const viaCable = c.from.moduleId === 'power-1' && c.to.moduleId === 'text-1';
+      expect(docked).toBe(!viaCable);
     }
   });
 
@@ -38,6 +40,42 @@ describe('connector geometry', () => {
     expect(pts[0][0]).toBeCloseTo(a.x);
     expect(pts[pts.length - 1][2]).toBeCloseTo(b.z);
     expect(pts.every((p) => p[1] > 0)).toBe(true);
+  });
+});
+
+describe('cable routing', () => {
+  const box = (cx: number, cz: number, hw: number, hd: number) => ({ cx, cz, hw, hd, yaw: 0 });
+  const crosses = (pts: Array<[number, number, number]>, o: ReturnType<typeof box>) =>
+    pts.some((p) => Math.abs(p[0] - o.cx) < o.hw && Math.abs(p[2] - o.cz) < o.hd);
+
+  it('lies on the ground and never passes through or over a housing', () => {
+    // a block sits right between the two connectors, in the straight line
+    const wall = box(0, 0, 1.2, 0.8);
+    const a = { x: -3, z: 0, nx: 1, nz: 0 };
+    const b = { x: 3, z: 0, nx: -1, nz: 0 };
+    const pts = cablePath(a, b, [wall]);
+    expect(crosses(pts, wall)).toBe(false);
+    // never lifted over the block: the highest point is the plug height
+    expect(Math.max(...pts.map((p) => p[1]))).toBeLessThan(0.1);
+    expect(pts[0][0]).toBeCloseTo(a.x);
+    expect(pts[pts.length - 1][0]).toBeCloseTo(b.x);
+  });
+
+  it('leaves each connector along its normal', () => {
+    const wall = box(0, 0, 1.2, 0.8);
+    const pts = cablePath({ x: -3, z: 0, nx: 1, nz: 0 }, { x: 3, z: 0, nx: -1, nz: 0 }, [wall]);
+    expect(Math.abs(pts[1][2])).toBeLessThan(0.02);
+    expect(pts[1][0]).toBeGreaterThan(pts[0][0]);
+  });
+
+  it('routes the default Power → Text cable clear of every block', () => {
+    const ws = createDefaultWorkspace();
+    const c = ws.connections.find((x) => x.from.moduleId === 'power-1' && x.to.moduleId === 'text-1')!;
+    const a = port(ws, c.from.moduleId, c.from.portId);
+    const b = port(ws, c.to.moduleId, c.to.portId);
+    const obstacles = ws.modules.map((m) => footprint(m, 0));
+    const pts = cablePath(a, b, obstacles);
+    for (const o of obstacles) expect(crosses(pts, o)).toBe(false);
   });
 });
 

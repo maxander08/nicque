@@ -57,7 +57,7 @@ describe('text block with two south key inputs', () => {
     expect(side(0, -1)).toHaveLength(1);
     expect(side(0, 1)).toHaveLength(2);
     expect(side(-1, 0)).toHaveLength(0);
-    expect(side(0, 1).every((p) => p.type === 'keys' && p.direction === 'in' && p.local.z === 1)).toBe(true);
+    expect(side(0, 1).every((p) => p.type === 'keys' && p.direction === 'in' && p.local.z === text.depth / 2)).toBe(true);
     const xs = side(0, 1).map((p) => p.local.x);
     expect(xs[0]).not.toBe(xs[1]);
   });

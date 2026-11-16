@@ -80,3 +80,47 @@ export function pointInObb(o: Obb, x: number, z: number): boolean {
   const dz = z - o.cz;
   return Math.abs(dx * ax.x + dz * ax.z) <= o.hw && Math.abs(dx * az.x + dz * az.z) <= o.hd;
 }
+
+/** World point → the box's local frame (x along its width, z along its depth). */
+export function toLocal(o: Obb, x: number, z: number): { x: number; z: number } {
+  const [ax, az] = axes(o);
+  const dx = x - o.cx;
+  const dz = z - o.cz;
+  return { x: dx * ax.x + dz * ax.z, z: dx * az.x + dz * az.z };
+}
+
+/** The box's local point → world. */
+export function fromLocal(o: Obb, lx: number, lz: number): { x: number; z: number } {
+  const [ax, az] = axes(o);
+  return { x: o.cx + lx * ax.x + lz * az.x, z: o.cz + lx * ax.z + lz * az.z };
+}
+
+/**
+ * True when the segment passes through the interior of the box (touching its boundary does not count, so a
+ * route may run exactly along an inflated box).
+ */
+export function segmentCrossesObb(o: Obb, x0: number, z0: number, x1: number, z1: number, eps = 0.004): boolean {
+  const a = toLocal(o, x0, z0);
+  const b = toLocal(o, x1, z1);
+  const hw = o.hw - eps;
+  const hd = o.hd - eps;
+  if (hw <= 0 || hd <= 0) return false;
+  let t0 = 0;
+  let t1 = 1;
+  const d = [b.x - a.x, b.z - a.z];
+  const p = [a.x, a.z];
+  const lim = [hw, hd];
+  for (let i = 0; i < 2; i++) {
+    if (Math.abs(d[i]) < 1e-12) {
+      if (Math.abs(p[i]) >= lim[i]) return false;
+    } else {
+      let ta = (-lim[i] - p[i]) / d[i];
+      let tb = (lim[i] - p[i]) / d[i];
+      if (ta > tb) [ta, tb] = [tb, ta];
+      t0 = Math.max(t0, ta);
+      t1 = Math.min(t1, tb);
+      if (t0 >= t1) return false;
+    }
+  }
+  return t0 < t1;
+}

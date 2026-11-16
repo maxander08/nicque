@@ -20,8 +20,8 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 | Select | click a block's **casing** (the black cover around its screen and buttons); click ground or `Esc` to deselect. Pressing *inside* a screen or on the Keyboard's keys never selects the block or opens its panel |
 | Move | drag a block. *Snap* toggles a 0.25 grid; connectors that face each other magnetically dock with a 0.05 gap; housings can never intersect. Arrow keys nudge the selected block, `R` rotates it |
 | Link | drag from one connector (status light on the cover edge) to another. Invalid links are refused with an explanation. Click a linked connector to remove its link, or use *Disconnect* / *Link* in the panels |
-| Power | the physical button on the Power Block, the switch in the status panel or inspector, or `P` |
-| Edit text | select the Text Block and type in the inspector, or press its **Edit** button. The **undo** button restores the sample text |
+| Power | every block has a small power button in its top-right header (`switchedOff` keeps its wiring while taking it out of service), plus the switch in the status drawer / inspector or `P` |
+| Edit text | select the Text Block and type in the inspector, or press its physical **Edit** / **Clear** / **Restore** buttons (the Text Block itself has no screen—link it to a Display Block to view its text; **Clear** in the Display header also empties its feeding Text Block) |
 | Add / remove blocks | *Add block* in the top bar (a Keyboard docks in front of a free Text Block and is powered automatically); *Remove* in the inspector |
 | Keyboard | link *Keyboard → Text* (drag connector to connector, or *Link* in the status panel), then press the keys on the Keyboard's LED screen, or select it and type on your own keyboard |
 | Workspace | Save / Load (browser storage), Export / Import (JSON file), Reset. The workspace is also autosaved and restored on reload |
@@ -94,7 +94,8 @@ Not implemented (honest list): hardware ray tracing / ray queries (not available
 Every block derives its spacing from one module, so the rules hold site-wide:
 
 - `EDGE` (0.14) is the margin between a block's border and anything cut into or printed on its cover; screen windows sit `EDGE` from the side borders.
-- Every module has a single round power LED (`PowerLed`) in the top-left corner, centred in the `LED_BAND` (`EDGE` from the top border) with its left edge aligned to `EDGE`.
-- Content starts `LED_BAND` (2 × `EDGE`) below the top border; badges are centred `BADGE_INSET` above the bottom border, and the Display Block shares the Keyboard Block's exact 62-cell vertical bezel geometry.
+- Every module has a single round power LED (`PowerLed`) in the top-left corner and header controls (`HeaderControls`) in the top-right corner (power toggle on every block, plus **Clear** on the Display Block).
+- Content starts `LED_BAND` (2 × `EDGE`) below the top border; badges are centred `BADGE_INSET` above the bottom border, Display and Keyboard share vertical bezel geometry, and Keyboard and Keypad share a 14-LED-cell key pitch, gap, radius and legend size.
+- Link cables route on the ground around module footprints (`src/connections/cable.ts`), never over or through blocks; the Status panel slides out from the right edge on hover.
 - The Power Block provides 8 power outputs (1 west, 1 east, and 6 evenly spaced along the south edge, preserving `power-out-a`/`b`/`c` docking positions).
 - `tests/layout.test.ts` enforces these rules.

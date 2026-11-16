@@ -4,13 +4,14 @@ import { LatheGeometry, MeshBasicMaterial, Vector2, type Group } from 'three';
 import { getMaterials } from '@/materials/library';
 import type { IconName } from '@/materials/screens';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
+import { CONTROL_CLEARANCE } from '@/modules/layout';
 import { useStore } from '@/state/store';
 import { useDisposable } from '../hooks';
 import { getIconTexture } from './Decals';
 
 const CAP_TOP = BLOCK_HEIGHT + 0.004;
 const CAP_BASE = 0.2;
-export const BUTTON_CLEARANCE = 0.014;
+export const BUTTON_CLEARANCE = CONTROL_CLEARANCE;
 /** Radius of every physical button on every block, so they all match. */
 export const BUTTON_RADIUS = 0.2;
 
@@ -92,7 +93,7 @@ export const ButtonCap = memo(function ButtonCap({ moduleId, action, x, z, radiu
       <group ref={group} userData={{ pick: { kind: 'button', moduleId, action } }}>
         <mesh geometry={geo} material={m.button} castShadow />
         <mesh position={[0, CAP_TOP - 0.003, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={3}>
-          <circleGeometry args={[radius * 0.56, 32]} />
+          <circleGeometry args={[radius * (radius < 0.15 ? 0.78 : 0.56), 32]} />
           <meshBasicMaterial
             map={iconTex}
             transparent

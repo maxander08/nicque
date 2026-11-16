@@ -27,7 +27,7 @@ describe('default workspace layout', () => {
     expect(p.z).toBeLessThan(t.z); // smaller z is "up" in the default view
     expect(p.z).toBeLessThan(d.z);
     expect(t.x).toBeLessThan(d.x);
-    expect(t.z).toBe(d.z);
+    expect(t.z).toBeGreaterThan(d.z); // the shallower Text Block shares the Display's bottom edge
   });
 
   it('contains exactly the required topology with valid links', () => {
@@ -148,5 +148,33 @@ describe('connection validation', () => {
       'input-occupied',
       'missing-endpoint',
     ]);
+  });
+});
+
+describe('per-block power buttons', () => {
+  const off = (w: ReturnType<typeof ws>, id: string) => ({
+    ...w,
+    modules: w.modules.map((m) => (m.id === id ? { ...m, switchedOff: true } : m)),
+  });
+
+  it('switches a wired block off without touching the rest of the system', () => {
+    const rt = evaluateWorkspace(off(ws(), 'display-1'));
+    expect(rt.modules['display-1'].state).toBe('off');
+    expect(rt.modules['display-1'].powered).toBe(false);
+    expect(rt.modules['display-1'].screen.kind).toBe('off');
+    expect(rt.modules['text-1'].state).toBe('operational');
+    expect(rt.systemOk).toBe(false);
+  });
+
+  it('a switched-off Text Block sends nothing to the display', () => {
+    const rt = evaluateWorkspace(off(ws(), 'text-1'));
+    expect(rt.modules['text-1'].state).toBe('off');
+    expect(rt.modules['display-1'].screen.kind).toBe('source-off');
+  });
+
+  it('is operational again once switched back on', () => {
+    const rt = evaluateWorkspace(ws());
+    expect(rt.systemOk).toBe(true);
+    expect(rt.modules['display-1'].screen.kind).toBe('text');
   });
 });

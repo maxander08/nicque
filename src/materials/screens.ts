@@ -4,6 +4,10 @@ import {
   KB_TEX_W,
   KEYPAD_KEYS,
   KEYS,
+  KEY_FONT,
+  KEY_FONT_SMALL,
+  KEY_LINE,
+  KEY_RADIUS,
   KP_TEX_H,
   KP_TEX_W,
   keyCap,
@@ -316,17 +320,17 @@ export function drawKeyboardScreen(
     const lit = pressed ? 0.62 + 0.38 * pressure : latched ? 0.5 : 0;
 
     ctx.globalAlpha = live;
-    roundRect(ctx, cap.x, cap.y, cap.w, cap.h, 16);
+    roundRect(ctx, cap.x, cap.y, cap.w, cap.h, KEY_RADIUS);
     ctx.fillStyle = lit > 0 ? `rgba(214,228,255,${lit.toFixed(3)})` : 'rgba(150,170,255,0.09)';
     ctx.fill();
-    ctx.lineWidth = 3;
+    ctx.lineWidth = KEY_LINE;
     ctx.strokeStyle = lit > 0 ? 'rgba(235,242,255,0.9)' : 'rgba(170,190,255,0.34)';
     ctx.stroke();
 
     const legend = legendOf(k, mods);
     if (legend) {
       const small = k.kind !== 'char';
-      ctx.font = `700 ${small ? 36 : 60}px ${SCREEN_FONT}`;
+      ctx.font = `700 ${small ? KEY_FONT_SMALL : KEY_FONT}px ${SCREEN_FONT}`;
       ctx.fillStyle = lit > 0.45 ? '#10163a' : '#f2f6ff';
       ctx.shadowColor = lit > 0.45 ? 'transparent' : 'rgba(160,190,255,0.55)';
       ctx.shadowBlur = lit > 0.45 ? 0 : 12;
@@ -393,19 +397,19 @@ export function drawKeypadScreen(
     const lit = pressure !== undefined ? 0.62 + 0.38 * pressure : 0;
 
     ctx.globalAlpha = live;
-    roundRect(ctx, cap.x, cap.y, cap.w, cap.h, 24);
+    roundRect(ctx, cap.x, cap.y, cap.w, cap.h, KEY_RADIUS);
     ctx.fillStyle = lit > 0 ? `rgba(214,228,255,${lit.toFixed(3)})` : 'rgba(150,170,255,0.09)';
     ctx.fill();
-    ctx.lineWidth = 4;
+    ctx.lineWidth = KEY_LINE;
     ctx.strokeStyle = lit > 0 ? 'rgba(235,242,255,0.9)' : 'rgba(170,190,255,0.34)';
     ctx.stroke();
 
-    ctx.font = `700 118px ${SCREEN_FONT}`;
+    ctx.font = `700 ${KEY_FONT}px ${SCREEN_FONT}`;
     ctx.fillStyle = lit > 0.45 ? '#10163a' : '#f2f6ff';
     ctx.shadowColor = lit > 0.45 ? 'transparent' : 'rgba(160,190,255,0.55)';
-    ctx.shadowBlur = lit > 0.45 ? 0 : 16;
+    ctx.shadowBlur = lit > 0.45 ? 0 : 12;
     // the printed glyphs of . , ~ sit on the baseline: nudge them so every legend looks centred
-    const nudge = k.base === '.' || k.base === ',' ? -26 : k.base === '~' || k.base === '*' ? 18 : 6;
+    const nudge = k.base === '.' || k.base === ',' ? -16 : k.base === '~' || k.base === '*' ? 10 : 3;
     ctx.fillText(k.base, cap.x + cap.w / 2, cap.y + cap.h / 2 + nudge);
     ctx.shadowBlur = 0;
   }

@@ -11,6 +11,8 @@ interface Props {
   /** True while the block receives power. Fades smoothly. */
   powered: boolean;
   color?: string;
+  /** Depth of the header strip the LED is centred in (the Power Block has a slimmer one). */
+  header?: number;
 }
 
 const OFF = new Color('#2d2f36');
@@ -19,8 +21,8 @@ const OFF = new Color('#2d2f36');
  * The block's single status light: one small round lens flush with the top cover, in the top-left corner.
  * Lit = the block receives power; dark = it does not. It is just the light itself: no halo, no rim.
  */
-export const PowerLed = memo(function PowerLed({ width, depth, powered, color = '#d7c9ff' }: Props) {
-  const { x, z } = powerLedPosition(width, depth);
+export const PowerLed = memo(function PowerLed({ width, depth, powered, color = '#d7c9ff', header }: Props) {
+  const { x, z } = powerLedPosition(width, depth, header);
   const on = useMemo(() => new Color(color), [color]);
   const level = powered ? 1 : 0;
   const current = useRef(level);

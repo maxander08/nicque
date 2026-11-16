@@ -50,7 +50,7 @@ function LinkedCable({ c, modules }: { c: ConnectionRecord; modules: ModuleRecor
   const points = useMemo(() => {
     if (!a || !b || docked) return null;
     const ends = (p: WorldPort): WorldPort => ({ ...p, x: p.x + p.nx * PLUG_LENGTH, z: p.z + p.nz * PLUG_LENGTH });
-    const obstacles = modules.map((m) => footprint(m, 0.05));
+    const obstacles = modules.map((m) => footprint(m, 0));
     return cablePath(ends(a), ends(b), obstacles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, obstacleKey, docked]);

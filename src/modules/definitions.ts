@@ -10,6 +10,8 @@ import type {
   TextConfig,
   Vec2,
 } from '@/types';
+import { KB_CELLS_X, KB_CELLS_Y, KP_CELLS_X, KP_CELLS_Y, LED_CELL } from './keyboard';
+import { EDGE, FOOTER, HEADER, depthForWindow } from './layout';
 
 /** Physical constants shared by every module (1 unit ≈ 5 cm). */
 export const BLOCK_HEIGHT = 0.26;
@@ -30,7 +32,29 @@ export interface ModuleDefinition {
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
-export const KEYBOARD_W = SQUARE * 2 + DOCK_GAP;
+/** Width / depth of an LED window: its cell count times the cell size, minus the 0.04 the plane overlaps its opening. */
+const ledWindow = (cells: number) => cells * LED_CELL - 0.04;
+
+/** The Keyboard Block wraps its 15 × 5 key LED window in the shared header, footer and EDGE bezels. */
+export const KEYBOARD_W = ledWindow(KB_CELLS_X) + 2 * EDGE;
+export const KEYBOARD_D = depthForWindow(ledWindow(KB_CELLS_Y));
+
+/** The Display Block keeps its 2 wide, 62-cell-tall LED window. */
+export const DISPLAY_D = depthForWindow(ledWindow(62));
+
+/**
+ * The Text Block has no screen any more, only its three buttons (edit, clear, restore) in the content area:
+ * the area is one button opening (0.428) plus EDGE above and below, so the margins match the rest of the block.
+ */
+export const TEXT_BUTTON_RADIUS = 0.2;
+export const TEXT_D = HEADER + FOOTER + (TEXT_BUTTON_RADIUS + 0.014) * 2 + 2 * EDGE;
+/**
+ * A Text Block is shallower than a Display Block. In the default arrangement their bottom edges line up (so a
+ * Keyboard or Keypad can still dock in front of the Text Block without touching the Display), and the Text
+ * Block's side connector sits this far above its centre so that it meets the Display's connector exactly.
+ */
+export const TEXT_DATA_Z = -(DISPLAY_D - TEXT_D) / 2;
+export const TEXT_W = SQUARE;
 const POWER_D = 1;
 
 /**
@@ -91,15 +115,15 @@ export const TEXT_KEY_PITCH = 1;
 const text: ModuleDefinition = {
   type: 'text',
   label: 'Text Block',
-  width: SQUARE,
-  depth: SQUARE,
+  width: TEXT_W,
+  depth: TEXT_D,
   ports: [
     {
       id: 'power-in',
       label: 'Power input',
       type: 'power',
       direction: 'in',
-      local: { x: 0, z: -SQUARE / 2 },
+      local: { x: 0, z: -TEXT_D / 2 },
       normal: { x: 0, z: -1 },
       capacity: 1,
     },
@@ -108,7 +132,7 @@ const text: ModuleDefinition = {
       label: 'Text output',
       type: 'text',
       direction: 'out',
-      local: { x: SQUARE / 2, z: 0 },
+      local: { x: SQUARE / 2, z: TEXT_DATA_Z },
       normal: { x: 1, z: 0 },
       capacity: 4,
     },
@@ -119,7 +143,7 @@ const text: ModuleDefinition = {
       label: 'Key input (south 1)',
       type: 'keys',
       direction: 'in',
-      local: { x: -TEXT_KEY_PITCH / 2, z: SQUARE / 2 },
+      local: { x: -TEXT_KEY_PITCH / 2, z: TEXT_D / 2 },
       normal: { x: 0, z: 1 },
       capacity: 1,
     },
@@ -128,7 +152,7 @@ const text: ModuleDefinition = {
       label: 'Key input (south 2)',
       type: 'keys',
       direction: 'in',
-      local: { x: TEXT_KEY_PITCH / 2, z: SQUARE / 2 },
+      local: { x: TEXT_KEY_PITCH / 2, z: TEXT_D / 2 },
       normal: { x: 0, z: 1 },
       capacity: 1,
     },
@@ -144,14 +168,14 @@ const display: ModuleDefinition = {
   type: 'display',
   label: 'Display Block',
   width: SQUARE,
-  depth: SQUARE,
+  depth: DISPLAY_D,
   ports: [
     {
       id: 'power-in',
       label: 'Power input',
       type: 'power',
       direction: 'in',
-      local: { x: 0, z: -SQUARE / 2 },
+      local: { x: 0, z: -DISPLAY_D / 2 },
       normal: { x: 0, z: -1 },
       capacity: 1,
     },
@@ -177,7 +201,7 @@ const keyboard: ModuleDefinition = {
   type: 'keyboard',
   label: 'Keyboard Block',
   width: KEYBOARD_W,
-  depth: SQUARE,
+  depth: KEYBOARD_D,
   ports: [
     {
       id: 'power-in',
@@ -194,7 +218,7 @@ const keyboard: ModuleDefinition = {
       label: 'Keyboard output',
       type: 'keys',
       direction: 'out',
-      local: { x: -(SQUARE + DOCK_GAP) / 2, z: -SQUARE / 2 },
+      local: { x: -(SQUARE + DOCK_GAP) / 2, z: -KEYBOARD_D / 2 },
       normal: { x: 0, z: -1 },
       capacity: 1,
     },
@@ -211,12 +235,13 @@ const keyboard: ModuleDefinition = {
  * Same connectors as the keyboard (power in on the east edge, key output on the north edge), so it plugs into
  * either key input of a Text Block.
  */
-export const KEYPAD_D = 2.4;
+export const KEYPAD_W = ledWindow(KP_CELLS_X) + 2 * EDGE;
+export const KEYPAD_D = depthForWindow(ledWindow(KP_CELLS_Y));
 
 const keypad: ModuleDefinition = {
   type: 'keypad',
   label: 'Keypad Block',
-  width: SQUARE,
+  width: KEYPAD_W,
   depth: KEYPAD_D,
   ports: [
     {
@@ -224,7 +249,7 @@ const keypad: ModuleDefinition = {
       label: 'Power input',
       type: 'power',
       direction: 'in',
-      local: { x: SQUARE / 2, z: 0 },
+      local: { x: KEYPAD_W / 2, z: 0 },
       normal: { x: 1, z: 0 },
       capacity: 1,
     },

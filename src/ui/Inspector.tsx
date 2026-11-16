@@ -15,7 +15,7 @@ export function Inspector() {
   const modules = workspace.modules;
   const runtimeConns = useStore((s) => s.runtime.connections);
   const focusNonce = useStore((s) => s.focusTextNonce);
-  const { select, setText, setPower, setAlign, rotateModule, removeModule, setKeyboardPressure, disconnect } =
+  const { select, setText, setPower, setAlign, clearDisplay, rotateModule, removeModule, setKeyboardPressure, disconnect } =
     useStore.getState();
   const area = useRef<HTMLTextAreaElement>(null);
 
@@ -25,6 +25,7 @@ export function Inspector() {
 
   if (!module || !rt || !selectedId) return null;
   const def = MODULE_DEFINITIONS[module.type];
+  const isOn = module.type === 'power' ? module.config.enabled : module.switchedOff !== true;
 
   return (
     <section
@@ -55,21 +56,20 @@ export function Inspector() {
       <div className="space-y-4 overflow-y-auto px-4 py-3">
         <p className="text-[13px] leading-snug text-neutral-300">{rt.detail}</p>
 
-        {module.type === 'power' && (
-          <div className="flex items-center justify-between">
-            <label className="text-[13px] font-medium" id="power-label">
-              Power
-            </label>
-            <div className="flex items-center gap-3">
-              <span className="text-[13px] text-neutral-300">{module.config.enabled ? 'On' : 'Off'}</span>
-              <Switch
-                checked={module.config.enabled}
-                onChange={(v) => setPower(module.id, v)}
-                label={`Power ${module.config.enabled ? 'on' : 'off'}`}
-              />
-            </div>
+        {/* every block has its own power switch, mirroring the button on its cover */}
+        <div className="flex items-center justify-between">
+          <label className="text-[13px] font-medium" id="power-label">
+            {module.type === 'power' ? 'Power' : 'Block power'}
+          </label>
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-neutral-300">{isOn ? 'On' : 'Off'}</span>
+            <Switch
+              checked={isOn}
+              onChange={(v) => setPower(module.id, v)}
+              label={`${module.name} power ${isOn ? 'on' : 'off'}`}
+            />
           </div>
-        )}
+        </div>
 
         {module.type === 'text' && (
           <div>
@@ -92,6 +92,9 @@ export function Inspector() {
               spellCheck={false}
               className="w-full resize-y rounded-lg border border-white/12 bg-black/40 px-3 py-2 text-[14px] leading-snug text-neutral-50 outline-none placeholder:text-neutral-500 focus:border-white/50"
             />
+            <p className="mt-1.5 text-xs leading-snug text-neutral-400">
+              The Text Block has no screen of its own. Link its output to a Display Block to see the text.
+            </p>
             {!rt.powered && (
               <p className="mt-1.5 text-xs text-amber-200/90">
                 The block is unpowered. The text is kept and will be sent once power returns.
@@ -113,6 +116,20 @@ export function Inspector() {
                   { value: 'center', label: 'Center' },
                 ]}
               />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium">Screen</span>
+              <IconButton
+                onClick={() => clearDisplay(module.id)}
+                disabled={!rt.powered}
+                aria-label="Clear display"
+                className="h-8 bg-white/8"
+              >
+                <svg width="13" height="13" viewBox="0 0 14 14" aria-hidden>
+                  <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+                Clear
+              </IconButton>
             </div>
             <p className="text-xs leading-snug text-neutral-400">
               Lines wrap at word boundaries and the type size shrinks to fit. Text that still does not fit is

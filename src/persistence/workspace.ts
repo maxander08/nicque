@@ -9,8 +9,8 @@ import type { ModuleRecord, PortRef, Workspace } from '@/types';
 
 export const WORKSPACE_VERSION = 1;
 export const STORAGE_KEYS = {
-  autosave: 'nicque.workspace.autosave.v1',
-  saved: 'nicque.workspace.saved.v1',
+  autosave: 'nicque.workspace.autosave.v2',
+  saved: 'nicque.workspace.saved.v2',
 } as const;
 
 export interface StorageLike {
@@ -82,6 +82,7 @@ export function parseWorkspace(json: string): ParseResult {
       position: { x: num(pos.x, 0), z: num(pos.z, 0) },
       rotation: ((rot % 4) + 4) % 4,
       config: def.sanitizeConfig(m.config),
+      ...(m.switchedOff === true && m.type !== 'power' ? { switchedOff: true } : {}),
     } as ModuleRecord);
   });
 

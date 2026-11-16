@@ -114,6 +114,8 @@ interface Store {
   linkModules: (fromId: string, toId: string, type: PortType) => void;
   disconnect: (connectionId: string) => void;
   pressButton: (moduleId: string, action: string) => void;
+  /** Clears the screen of a Display Block by emptying the Text Block that feeds it. */
+  clearDisplay: (displayId: string) => void;
   setQuality: (q: Quality) => void;
   setSnap: (v: boolean) => void;
   resetCamera: () => void;
@@ -175,6 +177,8 @@ function describeChanges(prev: RuntimeState, next: RuntimeState, ws: Workspace):
       others.push([`${names.get(m.id)} is operational`, 'success']);
     } else if (b.state === 'unpowered') {
       others.push([`${names.get(m.id)} lost power`, 'warn']);
+    } else if (b.state === 'off') {
+      others.push([`${names.get(m.id)} is off`, 'warn']);
     } else if (b.state === 'waiting') {
       others.push([`${names.get(m.id)} lost its data source`, 'warn']);
     }
@@ -262,11 +266,26 @@ export const useStore = create<Store>((set, get) => {
       commit(updateModule(ws, id, (m) => ({ ...m, config: { value: v } }) as ModuleRecord), true);
     },
 
+    /** Switches a block on or off with its own power button. A Power Block switches its supply instead. */
     setPower: (id, enabled) => {
       const ws = get().workspace;
       const cur = ws.modules.find((m) => m.id === id);
-      if (!cur || cur.type !== 'power' || cur.config.enabled === enabled) return;
-      commit(updateModule(ws, id, (m) => ({ ...m, config: { enabled } }) as ModuleRecord));
+      if (!cur) return;
+      if (cur.type === 'power') {
+        if (cur.config.enabled === enabled) return;
+        commit(updateModule(ws, id, (m) => ({ ...m, config: { enabled } }) as ModuleRecord));
+        return;
+      }
+      if ((cur.switchedOff !== true) === enabled) return;
+      commit(
+        updateModule(ws, id, (m) => {
+          const { switchedOff: _drop, ...rest } = m;
+          void _drop;
+          return (enabled ? rest : { ...rest, switchedOff: true }) as ModuleRecord;
+        }),
+        true,
+      );
+      get().notify(`${cur.name} switched ${enabled ? 'on' : 'off'}`, enabled ? 'success' : 'warn');
     },
 
     setAlign: (id, align) => {
@@ -327,13 +346,20 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const m = s.workspace.modules.find((x) => x.id === moduleId);
       if (!m) return;
-      if (action === 'toggle-power' && m.type === 'power') {
-        s.setPower(moduleId, !m.config.enabled);
+      // Every block's power button works whether or not the block is currently powered.
+      if (action === 'toggle-power') {
+        const isOn = m.type === 'power' ? m.config.enabled : m.switchedOff !== true;
+        s.setPower(moduleId, !isOn);
         return;
       }
       const rt = s.runtime.modules[moduleId];
       if (!rt?.powered) {
-        s.notify(`${m.name} has no power. Its controls are inactive.`, 'warn');
+        s.notify(
+          m.switchedOff
+            ? `${m.name} is switched off. Press its power button to use it.`
+            : `${m.name} has no power. Its controls are inactive.`,
+          'warn',
+        );
         return;
       }
       if (m.type === 'text') {
@@ -346,7 +372,27 @@ export const useStore = create<Store>((set, get) => {
           s.setText(moduleId, DEFAULT_TEXT);
           s.notify('Sample text restored', 'info');
         }
+      } else if (m.type === 'display' && action === 'clear') {
+        s.clearDisplay(moduleId);
       }
+    },
+
+    clearDisplay: (displayId) => {
+      const s = get();
+      const feeds = s.workspace.connections.filter((c) => c.type === 'text' && c.to.moduleId === displayId);
+      const sources = feeds
+        .map((c) => s.workspace.modules.find((m) => m.id === c.from.moduleId))
+        .filter((m): m is Extract<ModuleRecord, { type: 'text' }> => !!m && m.type === 'text');
+      if (sources.length === 0) {
+        s.notify('Nothing to clear. Link a Text Block to this display first.', 'warn');
+        return;
+      }
+      if (sources.every((t) => t.config.value.length === 0)) {
+        s.notify('The display is already clear', 'info');
+        return;
+      }
+      sources.forEach((t) => s.setText(t.id, ''));
+      s.notify('Display cleared', 'info');
     },
 
     setQuality: (q) => {
