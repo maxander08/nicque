@@ -164,3 +164,35 @@ describe('power block connectors', () => {
     }
   });
 });
+
+describe('one wire per port', () => {
+  const PLUG = 0.48;
+  const CORNER = 0.17;
+
+  it('gives every connector on every block a capacity of exactly one wire', () => {
+    for (const def of Object.values(MODULE_DEFINITIONS)) {
+      for (const p of def.ports) expect(p.capacity, `${def.type}.${p.id}`).toBe(1);
+    }
+  });
+
+  it('gives operators one pin per operand, keeping the original id for operand A', () => {
+    for (const t of ['adder', 'subtractor', 'multiplier', 'divisor'] as const) {
+      const ins = MODULE_DEFINITIONS[t].ports.filter((p) => p.type === 'text' && p.direction === 'in');
+      expect(ins.map((p) => p.id)).toEqual(['data-in', 'data-in-2']);
+    }
+  });
+
+  it('spaces the operand plugs with a clear gap, on the same edge, clear of the rounded corners', () => {
+    for (const t of ['adder', 'subtractor', 'multiplier', 'divisor'] as const) {
+      const def = MODULE_DEFINITIONS[t];
+      const [a, b] = def.ports.filter((p) => p.id === 'data-in' || p.id === 'data-in-2');
+      expect(a.local.x).toBe(b.local.x);
+      expect(a.normal).toEqual(b.normal);
+      expect(b.local.z - a.local.z - PLUG).toBeGreaterThan(0.15); // gap between the plugs, as on the Power Block
+      expect(a.local.z - PLUG / 2 + def.depth / 2 - CORNER).toBeGreaterThan(0.05);
+      expect(def.depth / 2 - CORNER - (b.local.z + PLUG / 2)).toBeGreaterThan(0.05);
+      // operand A still meets the output of a Text Block docked in front of it
+      expect(a.local.z).toBe(MODULE_DEFINITIONS.text.ports.find((p) => p.id === 'data-out')!.local.z);
+    }
+  });
+});

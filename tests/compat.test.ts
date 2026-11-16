@@ -8,9 +8,15 @@ import type { ConnectionRecord, ModuleRecord, Workspace } from '../src/types';
 const mk = (type: Parameters<typeof createModule>[0], id: string): ModuleRecord => createModule(type, id, { x: 0, z: 0 });
 const ref = (moduleId: string, portId: string) => ({ moduleId, portId });
 
-/** Tries to link `from.data-out` to `to.<port>`; adds it to the workspace when compatible. */
-function link(ws: Workspace, from: string, to: string, port = 'data-in') {
-  const res = validateConnection(ws, ref(from, 'data-out'), ref(to, port));
+/**
+ * Tries to link `from.data-out` to `to.<port>`; adds it to the workspace when compatible. Every port holds one
+ * wire, so without an explicit port the link uses the first free operand pin ('data-in', then 'data-in-2').
+ */
+function link(ws: Workspace, from: string, to: string, port?: string) {
+  let res = validateConnection(ws, ref(from, 'data-out'), ref(to, port ?? 'data-in'));
+  if (!res.ok && !port && res.code === 'input-occupied') {
+    res = validateConnection(ws, ref(from, 'data-out'), ref(to, 'data-in-2'));
+  }
   if (res.ok) ws.connections.push(res.connection as ConnectionRecord);
   return res;
 }
@@ -36,14 +42,19 @@ beforeEach(() => {
 
 describe('node compatibility', () => {
   it('lets every operator take Integer Blocks', () => {
-    for (const op of ['add', 'sub', 'mul', 'div']) expect(link(ws, 'int', op).ok).toBe(true);
+    // one wire per output, so each operator gets its own Integer Block
+    for (const op of ['add', 'sub', 'mul', 'div']) {
+      ws.modules.push(mk('integer', `int-${op}`));
+      expect(link(ws, `int-${op}`, op).ok).toBe(true);
+    }
   });
 
   it('lets only the Adder and Multiplier take Text Blocks', () => {
+    ws.modules.push(mk('text', 'txt3'), mk('text', 'txt4'));
     expect(link(ws, 'txt', 'add').ok).toBe(true);
-    expect(link(ws, 'txt', 'mul').ok).toBe(true);
-    const sub = link(ws, 'txt', 'sub');
-    const div = link(ws, 'txt', 'div');
+    expect(link(ws, 'txt2', 'mul').ok).toBe(true);
+    const sub = link(ws, 'txt3', 'sub');
+    const div = link(ws, 'txt4', 'div');
     expect(sub.ok).toBe(false);
     expect(div.ok).toBe(false);
     if (!sub.ok) {
@@ -58,10 +69,29 @@ describe('node compatibility', () => {
     expect(link(ws, 'int', 'mul').ok).toBe(true);
   });
 
+  it('gives each operand its own pin: one wire per port', () => {
+    const a = link(ws, 'int', 'sub', 'data-in');
+    expect(a.ok).toBe(true);
+    // the same pin refuses a second wire, even from another source
+    const again = link(ws, 'int2', 'sub', 'data-in');
+    expect(again.ok).toBe(false);
+    if (!again.ok) expect(again.code).toBe('input-occupied');
+    // the second operand has a pin of its own
+    expect(link(ws, 'int2', 'sub', 'data-in-2').ok).toBe(true);
+  });
+
+  it('lets an output carry one wire only', () => {
+    expect(link(ws, 'int', 'add').ok).toBe(true);
+    const second = link(ws, 'int', 'sub');
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.code).toBe('output-occupied');
+  });
+
   it('takes two operands per operator and no more', () => {
     expect(link(ws, 'int', 'sub').ok).toBe(true);
     expect(link(ws, 'int2', 'sub').ok).toBe(true);
-    const third = link(ws, 'int', 'sub');
+    ws.modules.push(mk('integer', 'int3'));
+    const third = link(ws, 'int3', 'sub');
     expect(third.ok).toBe(false);
   });
 

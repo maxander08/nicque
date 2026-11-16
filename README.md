@@ -40,7 +40,7 @@ Every block carries a small, subtle "nicque" mark with the block's name printed 
 
 ## Operator Blocks & Node Compatibility
 
-Adder (`+`), Subtractor (`−`), Multiplier (`×`) and Divisor (`÷`) Blocks share the Text Block's housing and power/output geometry, marked by a **yellow operator box + symbol** next to the top-left power LED (with no edit/pencil button or south key inputs, since operators hold no editable text of their own). Each operator accepts up to **two operands** on its west input and outputs on its east connector:
+Adder (`+`), Subtractor (`−`), Multiplier (`×`) and Divisor (`÷`) Blocks share the Text Block's housing and power/output geometry, marked by a **yellow operator box + symbol** next to the top-left power LED (with no edit/pencil button or south key inputs, since operators hold no editable text of their own). Every connector holds exactly **one wire**. Each operator therefore has **two operand pins** on its west edge (`data-in` and `data-in-2`, spaced with the same plug gap and corner clearance as the Power Block) and outputs on its east connector. An output feeds one block; a second consumer needs a second source:
 - **Subtractor & Divisor:** accept and output integers only.
 - **Adder & Multiplier:** accept integers and text (an Adder or Multiplier carrying text outputs text; a Multiplier allows `text × integer` but rejects `text × text`).
 - Full graph compatibility (`src/connections/compat.ts`) prevents cycles and rejects links that would turn an operator's downstream output into a type its existing consumers cannot accept.

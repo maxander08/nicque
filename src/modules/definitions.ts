@@ -134,6 +134,15 @@ const power: ModuleDefinition = {
 /** Distance between the two key inputs on the south edge of a Text Block. */
 export const TEXT_KEY_PITCH = 1;
 
+/**
+ * Distance between the two operand inputs on the west edge of an operator block. Every port holds exactly one
+ * wire, so an operator has one pin per operand. Operand A stays where the single input used to be (level with a
+ * Text Block's output), operand B sits below it. A plug is 0.48 wide, so this pitch leaves a 0.17 gap between the
+ * two plugs, and keeps the lower plug 0.226 clear of the block's rounded corner (radius 0.17), the same
+ * clearances the Power Block's connectors keep.
+ */
+export const OPERAND_PITCH = 0.65;
+
 const textPorts = (kind: DataKind): PortDef[] => [
   {
     id: 'power-in',
@@ -151,7 +160,7 @@ const textPorts = (kind: DataKind): PortDef[] => [
     direction: 'out',
     local: { x: SQUARE / 2, z: TEXT_DATA_Z },
     normal: { x: 1, z: 0 },
-    capacity: 4,
+    capacity: 1,
     kinds: [kind],
   },
   // Two key inputs along the south edge. The ids stay stable ('key-in' is the original single input) so saved
@@ -226,8 +235,8 @@ export const operatorKinds = (type: OperatorType): DataKind[] =>
 /**
  * An operator block has the footprint, header, buttons and power connector of a Text Block (it looks the same);
  * the visual difference is the yellow operator box next to its power LED, which now also carries the operator's
- * symbol. It has no key inputs (nothing to type into): its nodes are a power input, an operand input on the west
- * edge (two operands) and a result output on the east edge, aligned with the Text and Display Block data nodes.
+ * symbol. It has no key inputs (nothing to type into): its nodes are a power input, two operand inputs on the west
+ * edge (one wire each) and a result output on the east edge, aligned with the Text and Display Block data nodes.
  */
 const operatorDef = (type: OperatorType): ModuleDefinition => {
   const kinds = operatorKinds(type);
@@ -239,14 +248,25 @@ const operatorDef = (type: OperatorType): ModuleDefinition => {
     depth: TEXT_D,
     ports: [
       base[0],
+      // 'data-in' is the original operand input, so saved workspaces keep their links
       {
         id: 'data-in',
-        label: 'Operand input',
+        label: 'Operand input (west 1)',
         type: 'text',
         direction: 'in',
         local: { x: -SQUARE / 2, z: TEXT_DATA_Z },
         normal: { x: -1, z: 0 },
-        capacity: 2,
+        capacity: 1,
+        kinds,
+      },
+      {
+        id: 'data-in-2',
+        label: 'Operand input (west 2)',
+        type: 'text',
+        direction: 'in',
+        local: { x: -SQUARE / 2, z: TEXT_DATA_Z + OPERAND_PITCH },
+        normal: { x: -1, z: 0 },
+        capacity: 1,
         kinds,
       },
       { ...base[1], label: 'Result output', kinds },
