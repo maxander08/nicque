@@ -6,9 +6,11 @@ import { useStore } from '@/state/store';
 import { useFontsReady, useScreenTexture } from '../hooks';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
+import { EDGE, windowWidth } from '@/modules/layout';
 
 const def = MODULE_DEFINITIONS.display;
-const WINDOW = 1.72;
+/** The window sits EDGE from every border: the same margin as every other block. */
+const WINDOW = windowWidth(def.width);
 
 export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
@@ -42,10 +44,14 @@ export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   return (
     <group>
       <Housing width={def.width} depth={def.depth} holes={holes} />
-      <mesh position={[0, BLOCK_HEIGHT - 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} material={silicone.material} receiveShadow>
+      <mesh position={[0, BLOCK_HEIGHT - 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} material={silicone.material}
+        receiveShadow
+        userData={{ pick: { kind: 'screen', moduleId } }}
+      >
         <planeGeometry args={[WINDOW + 0.04, WINDOW + 0.04]} />
       </mesh>
-      <BlockBadge name="Display" x={0} z={0.925} width={0.34} height={0.14} />
+      {/* no LED band on this block: the badge is centred in the cover margin below the window */}
+      <BlockBadge name="Display" x={0} z={def.depth / 2 - EDGE / 2} width={0.34} height={0.14} />
     </group>
   );
 }

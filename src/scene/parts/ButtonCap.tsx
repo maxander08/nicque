@@ -10,7 +10,7 @@ import { getIconTexture } from './Decals';
 
 const CAP_TOP = BLOCK_HEIGHT + 0.004;
 const CAP_BASE = 0.2;
-const BUTTON_CLEARANCE = 0.014;
+export const BUTTON_CLEARANCE = 0.014;
 
 /** Hole spec for the housing cover so a button of `radius` can sit in a real opening. */
 export const buttonHole = (x: number, z: number, radius: number) => ({

@@ -5,24 +5,30 @@ import {
   TEXT_SCREEN_W,
   drawTextScreen,
 } from '@/materials/screens';
+import { EDGE, badgeZ, contentTopZ, windowWidth } from '@/modules/layout';
 import { BLOCK_HEIGHT, MODULE_DEFINITIONS } from '@/modules/definitions';
 import { getMaterials } from '@/materials/library';
 import { useStore } from '@/state/store';
 import { useDisposable, useFontsReady, useScreenTexture } from '../hooks';
-import { ButtonCap, buttonHole } from '../parts/ButtonCap';
+import { BUTTON_CLEARANCE, ButtonCap, buttonHole } from '../parts/ButtonCap';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
 import { LedRow } from '../parts/LedRow';
 
 const def = MODULE_DEFINITIONS.text;
-const WIN = { cz: -0.3, w: 1.7, d: 0.7 };
+const BTN_R = 0.2;
+const BTN_X = 0.55;
+/** Buttons end 0.06 above the badge; the screen sits EDGE below the LED band and EDGE above the buttons. */
+const BTN_BOTTOM = badgeZ(def.depth) - 0.12;
+const BTN_Z = BTN_BOTTOM - BTN_R - BUTTON_CLEARANCE;
+const WIN_TOP = contentTopZ(def.depth);
+const WIN_BOTTOM = BTN_Z - BTN_R - BUTTON_CLEARANCE - EDGE;
+const WIN = { cz: (WIN_TOP + WIN_BOTTOM) / 2, w: windowWidth(def.width), d: WIN_BOTTOM - WIN_TOP };
 const BUTTONS = [
-  { x: -0.55, action: 'edit', icon: 'edit', label: 'Edit button' },
+  { x: -BTN_X, action: 'edit', icon: 'edit', label: 'Edit button' },
   { x: 0, action: 'clear', icon: 'clear', label: 'Clear button' },
-  { x: 0.55, action: 'undo', icon: 'undo', label: 'Restore sample text button' },
+  { x: BTN_X, action: 'undo', icon: 'undo', label: 'Restore sample text button' },
 ] as const;
-const BTN_Z = 0.52;
-const BTN_R = 0.19;
 
 export function TextBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
@@ -60,15 +66,16 @@ export function TextBlockView({ moduleId }: { moduleId: string }) {
 
   const planeW = WIN.w + 0.04;
   const planeH = (planeW * TEXT_SCREEN_H) / TEXT_SCREEN_W;
+  const screenPick = { pick: { kind: 'screen', moduleId } };
 
   return (
     <group>
       <Housing width={def.width} depth={def.depth} holes={holes} />
       {/* embedded screen with a glass cover */}
-      <mesh position={[0, BLOCK_HEIGHT - 0.012, WIN.cz]} rotation={[-Math.PI / 2, 0, 0]} material={mat}>
+      <mesh position={[0, BLOCK_HEIGHT - 0.012, WIN.cz]} rotation={[-Math.PI / 2, 0, 0]} material={mat} userData={screenPick}>
         <planeGeometry args={[planeW, planeH]} />
       </mesh>
-      <mesh position={[0, BLOCK_HEIGHT - 0.006, WIN.cz]} rotation={[-Math.PI / 2, 0, 0]} material={m.glass} renderOrder={4}>
+      <mesh position={[0, BLOCK_HEIGHT - 0.006, WIN.cz]} rotation={[-Math.PI / 2, 0, 0]} material={m.glass} renderOrder={4} userData={screenPick}>
         <planeGeometry args={[planeW, planeH]} />
       </mesh>
       {BUTTONS.map((b) => (
@@ -83,8 +90,8 @@ export function TextBlockView({ moduleId }: { moduleId: string }) {
           label={b.label}
         />
       ))}
-      <LedRow count={12} span={1.56} z={-0.84} level={operational ? 1 : 0} />
-      <BlockBadge name="Text" x={0} z={0.865} width={0.36} height={0.15} />
+      <LedRow width={def.width} depth={def.depth} level={operational ? 1 : 0} />
+      <BlockBadge name="Text" x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
     </group>
   );
 }

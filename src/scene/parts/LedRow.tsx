@@ -2,12 +2,12 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CircleGeometry, Color, Matrix4, type InstancedMesh } from 'three';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
+import { ledRowLayout, ledRowZ } from '@/modules/layout';
 
 interface Props {
-  count: number;
-  /** Total span of the row along local X. */
-  span: number;
-  z: number;
+  /** Footprint of the block. Count, pitch and distance from the top border all derive from it, so every module matches. */
+  width: number;
+  depth: number;
   /** 0..1 fill level. Animated smoothly. */
   level: number;
   color?: string;
@@ -16,7 +16,9 @@ interface Props {
 const OFF = new Color('#2d2f36');
 
 /** Row of small LEDs flush with the top cover (like the status strip on the reference controllers). */
-export const LedRow = memo(function LedRow({ count, span, z, level, color = '#d7c9ff' }: Props) {
+export const LedRow = memo(function LedRow({ width, depth, level, color = '#d7c9ff' }: Props) {
+  const { count, span } = useMemo(() => ledRowLayout(width), [width]);
+  const z = ledRowZ(depth);
   const ref = useRef<InstancedMesh>(null);
   const current = useRef(level);
   const settled = useRef(false);
@@ -61,7 +63,7 @@ export const LedRow = memo(function LedRow({ count, span, z, level, color = '#d7
   });
 
   return (
-    <instancedMesh ref={ref} args={[geo, undefined, count]} renderOrder={2} frustumCulled={false}>
+    <instancedMesh key={count} ref={ref} args={[geo, undefined, count]} renderOrder={2} frustumCulled={false}>
       <meshBasicMaterial
         toneMapped={false}
         polygonOffset

@@ -8,6 +8,7 @@ import { useFontsReady, useScreenTexture } from '../hooks';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
 import { LedRow } from '../parts/LedRow';
+import { badgeZ, contentTopZ } from '@/modules/layout';
 
 const def = MODULE_DEFINITIONS.keyboard;
 
@@ -15,7 +16,8 @@ const def = MODULE_DEFINITIONS.keyboard;
 const CELL = 1.76 / 80;
 export const KB_PLANE_W = KB_CELLS_X * CELL;
 export const KB_PLANE_H = KB_CELLS_Y * CELL;
-const WINDOW = { cz: -0.08, w: KB_PLANE_W - 0.04, d: KB_PLANE_H - 0.04 };
+const WINDOW_D = KB_PLANE_H - 0.04;
+const WINDOW = { cz: contentTopZ(def.depth) + WINDOW_D / 2, w: KB_PLANE_W - 0.04, d: WINDOW_D };
 
 /** Pressure of the pressed keys of one module, as a stable string so that selectors do not re-render needlessly. */
 function useDownSignature(moduleId: string) {
@@ -81,8 +83,8 @@ export function KeyboardBlockView({ moduleId }: { moduleId: string }) {
       >
         <planeGeometry args={[KB_PLANE_W, KB_PLANE_H]} />
       </mesh>
-      <LedRow count={20} span={3.2} z={-0.88} level={operational ? 1 : 0} />
-      <BlockBadge name="Keyboard" x={0} z={0.82} />
+      <LedRow width={def.width} depth={def.depth} level={operational ? 1 : 0} />
+      <BlockBadge name="Keyboard" x={0} z={badgeZ(def.depth)} />
     </group>
   );
 }

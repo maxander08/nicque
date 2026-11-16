@@ -21,7 +21,8 @@ export const SCREEN_FONT = '"Atkinson Hyperlegible", "Inter Variable", "Segoe UI
 export const DISPLAY_SIZE = 1024;
 export const DISPLAY_CELLS = 80;
 export const TEXT_SCREEN_W = 1024;
-export const TEXT_SCREEN_H = 420;
+/** Matches the Text Block window (1.72 × 0.832) plus its 0.02 overlap on each side: 1.76 × 0.872 → 1024 × 508 px. */
+export const TEXT_SCREEN_H = 508;
 
 let dotMask: HTMLCanvasElement | null = null;
 const getDotMask = () => (dotMask ??= makeDotMaskCanvas(DISPLAY_SIZE, DISPLAY_CELLS, 0.24));

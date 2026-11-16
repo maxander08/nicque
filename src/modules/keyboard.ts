@@ -178,7 +178,8 @@ export function repeatInterval(pressure: number, profile: KeyPressure): number {
 
 /** LED lattice pitch (px) of the keyboard screen texture and the lattice size in cells. */
 export const KB_CELL_PX = 12;
-export const KB_CELLS_X = 164;
+/** 173 cells × 0.022 = 3.806 wide: the screen window ends up EDGE (0.14) from both side borders of the 4.05 block. */
+export const KB_CELLS_X = 173;
 export const KB_CELLS_Y = 62;
 export const KB_TEX_W = KB_CELLS_X * KB_CELL_PX;
 export const KB_TEX_H = KB_CELLS_Y * KB_CELL_PX;

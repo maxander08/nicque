@@ -18,7 +18,9 @@ type Pick =
   | { kind: 'module'; moduleId: string }
   | { kind: 'port'; moduleId: string; portId: string }
   | { kind: 'button'; moduleId: string; action: string }
-  | { kind: 'keys'; moduleId: string; uv?: { u: number; v: number } };
+  | { kind: 'keys'; moduleId: string; uv?: { u: number; v: number } }
+  /** A screen / LED panel set into a block. Pressing it never selects the block (only the casing does). */
+  | { kind: 'screen'; moduleId: string };
 
 type DragState =
   | { kind: 'empty'; x: number; y: number; moved: boolean }
@@ -220,9 +222,9 @@ export function InteractionController() {
       let pk = pickAt(e);
       let key = null as ReturnType<typeof keyAtUv>;
       if (pk?.kind === 'keys') {
-        // keys only react on a powered keyboard; the gaps and margins of the screen still drag the block
+        // keys only react on a powered keyboard; the gaps between them (or an unpowered screen) are inert
         key = pk.uv && st.runtime.modules[pk.moduleId]?.powered ? keyAtUv(pk.uv.u, pk.uv.v) : null;
-        if (!key) pk = { kind: 'module', moduleId: pk.moduleId };
+        if (!key) pk = { kind: 'screen', moduleId: pk.moduleId };
       }
       if (!pk) {
         drag = { kind: 'empty', x: e.clientX, y: e.clientY, moved: false };
@@ -231,7 +233,7 @@ export function InteractionController() {
         e.stopPropagation();
         e.preventDefault();
         if (pk.kind === 'keys' && key) {
-          st.select(pk.moduleId);
+          // typing on the LED screen never selects the block or opens its panel
           drag = {
             kind: 'keys',
             moduleId: pk.moduleId,
@@ -242,8 +244,9 @@ export function InteractionController() {
             timer: 0,
           };
           fireKey(drag);
-        } else if (pk.kind === 'module') {
-          st.select(pk.moduleId);
+        } else if (pk.kind === 'module' || pk.kind === 'screen') {
+          // only the casing selects; a press on a screen leaves the selection untouched (it can still drag the block)
+          if (pk.kind === 'module') st.select(pk.moduleId);
           const g = groundAt(e);
           const m = st.workspace.modules.find((x) => x.id === pk.moduleId);
           if (!g || !m) return;
@@ -291,10 +294,14 @@ export function InteractionController() {
         } else if (pk.kind === 'button') {
           st.setHover({ kind: 'button', moduleId: pk.moduleId, id: pk.action });
           setCursor('pointer');
-        } else if (pk.kind === 'keys') {
-          st.setHover({ kind: 'module', moduleId: pk.moduleId });
-          const over = pk.uv && st.runtime.modules[pk.moduleId]?.powered ? keyAtUv(pk.uv.u, pk.uv.v) : null;
-          setCursor(over ? 'pointer' : 'grab');
+        } else if (pk.kind === 'keys' || pk.kind === 'screen') {
+          // screens are not part of the selectable casing: no block hover highlight
+          st.setHover(null);
+          const over =
+            pk.kind === 'keys' && pk.uv && st.runtime.modules[pk.moduleId]?.powered
+              ? keyAtUv(pk.uv.u, pk.uv.v)
+              : null;
+          setCursor(over ? 'pointer' : 'default');
         } else if (pk.kind === 'port') {
           st.setHover({ kind: 'port', moduleId: pk.moduleId, id: pk.portId });
           setCursor('crosshair');

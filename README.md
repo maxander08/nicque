@@ -17,7 +17,7 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 | Action | How |
 | --- | --- |
 | Orbit / pan / zoom | drag the ground / right-drag / wheel. *Reset view* animates back to the default camera |
-| Select | click a block (click ground or `Esc` to deselect) |
+| Select | click a block's **casing** (the black cover around its screen and buttons); click ground or `Esc` to deselect. Pressing *inside* a screen or on the Keyboard's keys never selects the block or opens its panel |
 | Move | drag a block. *Snap* toggles a 0.25 grid; connectors that face each other magnetically dock with a 0.05 gap; housings can never intersect. Arrow keys nudge the selected block, `R` rotates it |
 | Link | drag from one connector (status light on the cover edge) to another. Invalid links are refused with an explanation. Click a linked connector to remove its link, or use *Disconnect* / *Link* in the panels |
 | Power | the physical button on the Power Block, the switch in the status panel or inspector, or `P` |
@@ -86,3 +86,12 @@ Implemented:
 * Endless ground: a huge disc whose exponential fog matches a sky dome, so no edge/horizon is visible; the camera is clamped.
 
 Not implemented (honest list): hardware ray tracing / ray queries (not available in WebGL), screen-space reflections, temporal accumulation/TAA. Metallic reflections come from the environment probe.
+
+## Layout rules (`src/modules/layout.ts`)
+
+Every block derives its spacing from one module, so the rules hold site-wide:
+
+- `EDGE` (0.14) is the margin between a block's border and anything cut into or printed on its cover; screen windows sit `EDGE` from the side borders.
+- The status LEDs sit exactly `LED_INSET` (= `EDGE`) from the top border on every module, with one shared pitch (`LED_PITCH`) and equal end margins. `LedRow` only accepts the block's width and depth, so a module cannot place its LEDs anywhere else.
+- Content starts `LED_BAND` (2 × `EDGE`) below the top border; badges are centred `BADGE_INSET` above the bottom border.
+- `tests/layout.test.ts` enforces these rules.
