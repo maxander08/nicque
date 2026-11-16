@@ -33,7 +33,8 @@ const CableMesh = memo(function CableMesh({ points }: { points: Array<[number, n
   const mat = getMaterials();
   const geo = useDisposable(() => {
     const curve = new CatmullRomCurve3(points.map((p) => new Vector3(...p)), false, 'centripetal');
-    return new TubeGeometry(curve, 64, CABLE_RADIUS, 10, false);
+    // enough rings for long, winding routes to stay perfectly round and smooth
+    return new TubeGeometry(curve, Math.min(900, Math.max(96, points.length * 2)), CABLE_RADIUS, 10, false);
   }, [points]);
   return <mesh geometry={geo} material={mat.insert} castShadow />;
 });

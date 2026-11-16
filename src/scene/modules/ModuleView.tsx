@@ -9,6 +9,7 @@ import { useDisposable } from '../hooks';
 import { CORNER_RADIUS } from '../parts/Housing';
 import { PortView } from '../parts/PortView';
 import { DisplayBlockView } from './DisplayBlockView';
+import { IntegerBlockView } from './IntegerBlockView';
 import { KeyboardBlockView } from './KeyboardBlockView';
 import { KeypadBlockView } from './KeypadBlockView';
 import { PowerBlockView } from './PowerBlockView';
@@ -18,6 +19,7 @@ import { TextBlockView } from './TextBlockView';
 const BODIES: Record<ModuleType, ComponentType<{ moduleId: string }>> = {
   power: PowerBlockView,
   text: TextBlockView,
+  integer: IntegerBlockView,
   display: DisplayBlockView,
   keyboard: KeyboardBlockView,
   keypad: KeypadBlockView,

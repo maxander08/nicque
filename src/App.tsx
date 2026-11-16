@@ -5,6 +5,7 @@ import { Scene } from '@/scene/Scene';
 import { startAutosave, useStore } from '@/state/store';
 import { Hint, LinkHint, Toasts } from '@/ui/Feedback';
 import { Inspector } from '@/ui/Inspector';
+import { LeftToolbar } from '@/ui/LeftToolbar';
 import { StatusPanel } from '@/ui/StatusPanel';
 import { TopBar } from '@/ui/TopBar';
 
@@ -68,6 +69,7 @@ export default function App() {
         <Scene />
       </main>
       <TopBar />
+      <LeftToolbar />
       <StatusPanel />
       <Inspector />
       <Toasts />

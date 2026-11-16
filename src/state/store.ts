@@ -1,8 +1,16 @@
 import { create } from 'zustand';
 import { findFreePortPair } from '@/connections/suggest';
 import { validateConnection } from '@/connections/validate';
+import { resolveDrop } from '@/interactions/drop';
 import { spawnPlacement } from '@/interactions/spawn';
-import { DEFAULT_TEXT, MAX_TEXT_LENGTH, createModule, getDefinition } from '@/modules/definitions';
+import {
+  DEFAULT_INTEGER,
+  DEFAULT_TEXT,
+  MAX_TEXT_LENGTH,
+  createModule,
+  getDefinition,
+  sanitizeInteger,
+} from '@/modules/definitions';
 import {
   NO_MODS,
   applyEdit,
@@ -20,6 +28,7 @@ import {
   saveWorkspace,
   serializeWorkspace,
 } from '@/persistence/workspace';
+import { LIGHTING_PRESETS, isLightingId, type LightingId } from '@/rendering/lighting';
 import { evaluateWorkspace } from '@/runtime/evaluate';
 import type {
   KeyPressure,
@@ -33,6 +42,7 @@ import type {
   Workspace,
 } from '@/types';
 import { createDefaultWorkspace } from './defaultWorkspace';
+import { releaseClearedDisplays } from './displayClear';
 
 export type Quality = 'high' | 'medium' | 'performance';
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';
@@ -60,10 +70,11 @@ const SETTINGS_KEY = 'nicque.settings.v1';
 interface Settings {
   quality: Quality;
   snap: boolean;
+  lighting: LightingId;
 }
 
 function loadSettings(): Settings {
-  const fallback: Settings = { quality: 'high', snap: true };
+  const fallback: Settings = { quality: 'high', snap: true, lighting: 'studio' };
   try {
     const s = getBrowserStorage()?.getItem(SETTINGS_KEY);
     if (!s) return fallback;
@@ -76,6 +87,7 @@ function loadSettings(): Settings {
             ? 'medium'
             : 'high',
       snap: p.snap !== false,
+      lighting: isLightingId(p.lighting) ? p.lighting : 'studio',
     };
   } catch {
     return fallback;
@@ -92,6 +104,8 @@ interface Store {
   selectedId: string | null;
   quality: Quality;
   snap: boolean;
+  /** Active lighting scene (see rendering/lighting.ts). */
+  lighting: LightingId;
   toasts: Toast[];
   focusTextNonce: number;
   cameraResetNonce: number;
@@ -114,10 +128,14 @@ interface Store {
   linkModules: (fromId: string, toId: string, type: PortType) => void;
   disconnect: (connectionId: string) => void;
   pressButton: (moduleId: string, action: string) => void;
-  /** Clears the screen of a Display Block by emptying the Text Block that feeds it. */
+  /**
+   * Clears the screen of a Display Block only. The Text / Integer Block that feeds it keeps its data; the display
+   * shows it again once that data (or the link) changes.
+   */
   clearDisplay: (displayId: string) => void;
   setQuality: (q: Quality) => void;
   setSnap: (v: boolean) => void;
+  setLighting: (id: LightingId) => void;
   resetCamera: () => void;
   saveToBrowser: () => void;
   loadFromBrowser: () => void;
@@ -130,7 +148,8 @@ interface Store {
   setHover: (h: HoverInfo | null) => void;
   setLinkDrag: (d: LinkDrag | null) => void;
   setDraggingId: (id: string | null) => void;
-  addModule: (type: ModuleType) => void;
+  /** Adds a block; with `at` (a ground point, e.g. a library drop) it is placed there instead of the default spot. */
+  addModule: (type: ModuleType, at?: Vec2) => void;
   removeModule: (id: string) => void;
   setKeyboardPressure: (id: string, pressure: KeyPressure) => void;
   /** Types an edit into every Text Block the keyboard is linked to. Returns false when nothing received it. */
@@ -204,7 +223,9 @@ const settings = loadSettings();
 
 export const useStore = create<Store>((set, get) => {
   /** Applies a logic change: recompute runtime once and emit feedback. */
-  const commit = (ws: Workspace, quiet = false) => {
+  const commit = (incoming: Workspace, quiet = false) => {
+    // a Display that was cleared with its own button shows live data again once its feed changes
+    const ws = releaseClearedDisplays(get().workspace, incoming);
     const prev = get().runtime;
     const next = evaluateWorkspace(ws);
     set({ workspace: ws, runtime: next });
@@ -217,6 +238,7 @@ export const useStore = create<Store>((set, get) => {
     selectedId: null,
     quality: settings.quality,
     snap: settings.snap,
+    lighting: settings.lighting,
     toasts: initial.warnings.map((message) => ({ id: toastSeq++, kind: 'warn' as const, message })),
     focusTextNonce: 0,
     cameraResetNonce: 0,
@@ -259,10 +281,12 @@ export const useStore = create<Store>((set, get) => {
     },
 
     setText: (id, value) => {
-      const v = value.slice(0, MAX_TEXT_LENGTH);
       const ws = get().workspace;
       const cur = ws.modules.find((m) => m.id === id);
-      if (!cur || cur.type !== 'text' || cur.config.value === v) return;
+      if (!cur || (cur.type !== 'text' && cur.type !== 'integer')) return;
+      // the Integer Block only ever holds a whole number: anything else is dropped
+      const v = cur.type === 'integer' ? sanitizeInteger(value) : value.slice(0, MAX_TEXT_LENGTH);
+      if (cur.config.value === v) return;
       commit(updateModule(ws, id, (m) => ({ ...m, config: { value: v } }) as ModuleRecord), true);
     },
 
@@ -292,7 +316,7 @@ export const useStore = create<Store>((set, get) => {
       const ws = get().workspace;
       const cur = ws.modules.find((m) => m.id === id);
       if (!cur || cur.type !== 'display' || cur.config.align === align) return;
-      commit(updateModule(ws, id, (m) => ({ ...m, config: { align } }) as ModuleRecord), true);
+      commit(updateModule(ws, id, (m) => ({ ...m, config: { ...m.config, align } }) as ModuleRecord), true);
     },
 
     connect: (a, b) => {
@@ -362,15 +386,17 @@ export const useStore = create<Store>((set, get) => {
         );
         return;
       }
-      if (m.type === 'text') {
+      if (m.type === 'text' || m.type === 'integer') {
+        const isInt = m.type === 'integer';
         if (action === 'edit') {
           set({ selectedId: moduleId, focusTextNonce: s.focusTextNonce + 1 });
         } else if (action === 'clear') {
+          // X on a Text / Integer Block empties the block itself, so every display it feeds goes blank too
           s.setText(moduleId, '');
-          s.notify('Text cleared', 'info');
+          s.notify(isInt ? 'Integer cleared' : 'Text cleared', 'info');
         } else if (action === 'undo') {
-          s.setText(moduleId, DEFAULT_TEXT);
-          s.notify('Sample text restored', 'info');
+          s.setText(moduleId, isInt ? DEFAULT_INTEGER : DEFAULT_TEXT);
+          s.notify(isInt ? 'Sample integer restored' : 'Sample text restored', 'info');
         }
       } else if (m.type === 'display' && action === 'clear') {
         s.clearDisplay(moduleId);
@@ -379,25 +405,28 @@ export const useStore = create<Store>((set, get) => {
 
     clearDisplay: (displayId) => {
       const s = get();
+      const display = s.workspace.modules.find((m) => m.id === displayId);
+      if (!display || display.type !== 'display') return;
       const feeds = s.workspace.connections.filter((c) => c.type === 'text' && c.to.moduleId === displayId);
       const sources = feeds
         .map((c) => s.workspace.modules.find((m) => m.id === c.from.moduleId))
-        .filter((m): m is Extract<ModuleRecord, { type: 'text' }> => !!m && m.type === 'text');
+        .filter((m): m is Extract<ModuleRecord, { type: 'text' | 'integer' }> => !!m && (m.type === 'text' || m.type === 'integer'));
       if (sources.length === 0) {
         s.notify('Nothing to clear. Link a Text Block to this display first.', 'warn');
         return;
       }
-      if (sources.every((t) => t.config.value.length === 0)) {
+      if (display.config.cleared || sources.every((t) => t.config.value.length === 0)) {
         s.notify('The display is already clear', 'info');
         return;
       }
-      sources.forEach((t) => s.setText(t.id, ''));
-      s.notify('Display cleared', 'info');
+      // Only the display is blanked. The source block is left untouched and keeps its data.
+      commit(updateModule(s.workspace, displayId, (m) => ({ ...m, config: { ...m.config, cleared: true } }) as ModuleRecord), true);
+      s.notify('Display cleared · the source block keeps its data', 'info');
     },
 
     setQuality: (q) => {
       set({ quality: q });
-      persistSettings(q, get().snap);
+      persistSettings(q, get().snap, get().lighting);
       get().notify(
         q === 'high'
           ? 'High quality rendering'
@@ -409,8 +438,14 @@ export const useStore = create<Store>((set, get) => {
     },
     setSnap: (v) => {
       set({ snap: v });
-      persistSettings(get().quality, v);
+      persistSettings(get().quality, v, get().lighting);
       get().notify(v ? 'Grid snapping on' : 'Grid snapping off', 'info');
+    },
+    setLighting: (id) => {
+      if (get().lighting === id) return;
+      set({ lighting: id });
+      persistSettings(get().quality, get().snap, id);
+      get().notify(`${LIGHTING_PRESETS[id].label} lighting`, 'info');
     },
     resetCamera: () => set({ cameraResetNonce: get().cameraResetNonce + 1 }),
 
@@ -459,14 +494,14 @@ export const useStore = create<Store>((set, get) => {
       set((s) => ({ toasts: [...s.toasts, { id: toastSeq++, kind, message }].slice(-3) })),
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
-    addModule: (type) => {
+    addModule: (type, at) => {
       const ws = get().workspace;
       const def = getDefinition(type);
       let n = 1;
       const ids = new Set(ws.modules.map((m) => m.id));
       while (ids.has(`${type}-${n}`)) n++;
       const same = ws.modules.filter((m) => m.type === type).length;
-      const { position, rotation } = spawnPlacement(ws, type);
+      const { position, rotation } = at ? resolveDrop(ws, type, at, get().snap) : spawnPlacement(ws, type);
       const mod = createModule(type, `${type}-${n}`, position, rotation, same > 0 ? `${def.label} ${same + 1}` : def.label);
       commit({ ...ws, modules: [...ws.modules, mod] }, true);
       set({ selectedId: mod.id });
@@ -520,7 +555,10 @@ export const useStore = create<Store>((set, get) => {
       }
       for (const c of targets) {
         const t = get().workspace.modules.find((m) => m.id === c.to.moduleId);
-        if (t && t.type === 'text') get().setText(t.id, applyEdit(t.config.value, edit, MAX_TEXT_LENGTH));
+        // an Integer Block drops anything that is not part of a whole number (setText sanitises it)
+        if (t && (t.type === 'text' || t.type === 'integer')) {
+          get().setText(t.id, applyEdit(t.config.value, edit, MAX_TEXT_LENGTH));
+        }
       }
       return true;
     },
@@ -593,9 +631,9 @@ export const useStore = create<Store>((set, get) => {
   };
 });
 
-function persistSettings(quality: Quality, snap: boolean) {
+function persistSettings(quality: Quality, snap: boolean, lighting: LightingId) {
   try {
-    getBrowserStorage()?.setItem(SETTINGS_KEY, JSON.stringify({ quality, snap }));
+    getBrowserStorage()?.setItem(SETTINGS_KEY, JSON.stringify({ quality, snap, lighting }));
   } catch {
     /* ignore */
   }

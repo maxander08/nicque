@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { getMaterials } from '@/materials/library';
-import { FOG_COLOR, KEY_LIGHT_DIRECTION } from '@/rendering/config';
+import { KEY_LIGHT_DIRECTION } from '@/rendering/config';
+import { LIGHTING_PRESETS } from '@/rendering/lighting';
 import {
   createGroundOcclusionUniforms,
   patchGroundShader,
@@ -16,6 +17,7 @@ import type { ModuleRecord } from '@/types';
  */
 export function Ground() {
   const material = getMaterials().ground;
+  const skyColor = LIGHTING_PRESETS[useStore((s) => s.lighting)].fog;
   const uniforms = useMemo(() => createGroundOcclusionUniforms(KEY_LIGHT_DIRECTION), []);
 
   useEffect(() => {
@@ -42,10 +44,10 @@ export function Ground() {
       <mesh rotation={[-Math.PI / 2, 0, 0]} material={material} receiveShadow={false}>
         <circleGeometry args={[900, 96]} />
       </mesh>
-      {/* sky dome: same colour as the fog, drawn behind everything */}
+      {/* sky dome: same colour as the fog (of the active lighting scene), drawn behind everything */}
       <mesh renderOrder={-10} raycast={() => null}>
         <sphereGeometry args={[1200, 24, 12]} />
-        <meshBasicMaterial color={FOG_COLOR} side={1} fog={false} depthWrite={false} />
+        <meshBasicMaterial color={skyColor} side={1} fog={false} depthWrite={false} />
       </mesh>
     </>
   );

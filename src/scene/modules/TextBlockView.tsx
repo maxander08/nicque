@@ -26,9 +26,10 @@ const CONTROLS = withPower();
 
 /**
  * The Text Block is a pure input device: it has no screen. Its buttons edit, clear and restore the text, and the
- * result is read on a Display Block that the Text Block is linked to.
+ * result is read on a Display Block that the Text Block is linked to. The Integer Block reuses this exact body
+ * and only changes the printed name.
  */
-export function TextBlockView({ moduleId }: { moduleId: string }) {
+export function TextBlockView({ moduleId, badge = 'Text' }: { moduleId: string; badge?: string }) {
   const powered = useBlockOn(moduleId);
 
   const holes = useMemo(
@@ -56,7 +57,7 @@ export function TextBlockView({ moduleId }: { moduleId: string }) {
       ))}
       <HeaderControls moduleId={moduleId} width={def.width} depth={def.depth} controls={CONTROLS} />
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
-      <BlockBadge name="Text" x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
+      <BlockBadge name={badge} x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
     </group>
   );
 }

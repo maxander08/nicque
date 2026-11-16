@@ -5,7 +5,7 @@
  * from transient runtime state (RuntimeState), which is always derived by the runtime engine.
  */
 
-export type ModuleType = 'power' | 'text' | 'display' | 'keyboard' | 'keypad';
+export type ModuleType = 'power' | 'text' | 'integer' | 'display' | 'keyboard' | 'keypad';
 export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
 
@@ -20,8 +20,17 @@ export interface PowerConfig {
 export interface TextConfig {
   value: string;
 }
+/** The Integer Block looks like a Text Block but only holds a whole number: an optional minus sign and digits. */
+export interface IntegerConfig {
+  value: string;
+}
 export interface DisplayConfig {
   align: 'left' | 'center';
+  /**
+   * True after the Display's own clear button was pressed: the screen is blank, but the block that feeds it keeps
+   * its data. It is released as soon as the feeding data (or the link) changes.
+   */
+  cleared?: boolean;
 }
 
 /** Key pressure sensitivity of the Keyboard and Keypad Blocks (actuation force and key-repeat behaviour). */
@@ -48,10 +57,11 @@ interface ModuleBase {
 
 export type PowerModule = ModuleBase & { type: 'power'; config: PowerConfig };
 export type TextModule = ModuleBase & { type: 'text'; config: TextConfig };
+export type IntegerModule = ModuleBase & { type: 'integer'; config: IntegerConfig };
 export type DisplayModule = ModuleBase & { type: 'display'; config: DisplayConfig };
 export type KeyboardModule = ModuleBase & { type: 'keyboard'; config: KeyboardConfig };
 export type KeypadModule = ModuleBase & { type: 'keypad'; config: KeypadConfig };
-export type ModuleRecord = PowerModule | TextModule | DisplayModule | KeyboardModule | KeypadModule;
+export type ModuleRecord = PowerModule | TextModule | IntegerModule | DisplayModule | KeyboardModule | KeypadModule;
 
 export interface PortDef {
   id: string;
@@ -96,6 +106,8 @@ export type ScreenContent =
   /** `typing` is true while a powered Keyboard Block is linked to the Text Block. */
   | { kind: 'text'; text: string; typing?: boolean }
   | { kind: 'empty'; typing?: boolean }
+  /** A Display Block whose own clear button was pressed; its source still holds the data. */
+  | { kind: 'cleared' }
   /** Keyboard LED screen. `linked` is true when its keystrokes reach a powered Text Block. */
   | { kind: 'keys'; linked: boolean }
   | { kind: 'no-source' }

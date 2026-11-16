@@ -126,6 +126,7 @@ export function drawDisplayScreen(
       'no-source': ['No data source', 'Link a Text Block to this display'],
       'source-off': ['Source unavailable', 'The linked Text Block is not operating'],
       empty: ['Empty text', 'The Text Block sends no characters'],
+      cleared: ['Display cleared', 'The source block still holds its data'],
     };
     const [title, sub] = messages[content.kind];
     ctx.fillStyle = '#dfe6f7';

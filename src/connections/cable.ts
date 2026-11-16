@@ -11,7 +11,8 @@ import { fromLocal, pointInObb, segmentCrossesObb } from '@/modules/spatial';
  *  1. It leaves each connector straight along the connector's normal.
  *  2. It lies on the ground. It never lifts over a housing and never passes through one.
  *  3. If the direct curve is clear it is used; otherwise the shortest path around the footprints (with a
- *     safety margin) is found on a visibility graph and its corners are rounded into smooth bends.
+ *     safety margin) is found on a visibility graph and its corners are rounded with wide arcs (as wide as the free space allows), so every bend is a
+ *     long, gentle arc instead of a sharp left / right turn.
  */
 
 export const CABLE_RADIUS = 0.04;
@@ -28,13 +29,20 @@ type P3 = [number, number, number];
 type P2 = [number, number];
 
 /** Margins tried in order: roomy first, then tighter ones when connectors sit close to a neighbour. */
-const CLEARANCES = [0.24, 0.16, 0.1, 0.06];
-/** Largest bend radius, and the length over which the cable rises from the ground to a plug. */
-const MAX_BEND = 0.3;
+const CLEARANCES = [0.5, 0.36, 0.24, 0.16, 0.1, 0.06];
+/** Straight run leaving a plug before the first bend, longest (most room to arc gently) first. */
+const LEADS = [0.8, 0.55, 0.34];
+/** Smallest distance the finished cable may come to a housing. */
+const SAFE_GAP = 0.05;
+/** How much a corner bend of a given reach eats into the clearance (quadratic bend at a right angle: 0.35). */
+const BEND_BITE = 0.36;
+/** The bend reach used by the fallback: the original, tight rounding. */
+const TIGHT_BEND = 0.3;
+const MAX_BEND = 1.6;
+/** Length over which the cable rises from the ground to a plug. */
 const LIFT = 0.34;
-/** Straight run leaving a plug. */
+/** Shortest straight run leaving a plug. */
 const LEAD_MIN = 0.12;
-const LEAD_MAX = 0.34;
 
 function bezier(p0: P2, p1: P2, p2: P2, p3: P2, t: number): P2 {
   const u = 1 - t;
@@ -132,8 +140,12 @@ function simplify(path: P2[]): P2[] {
   return out;
 }
 
-/** Rounds every corner of a polyline into a quadratic bend and samples the result. */
-function roundCorners(path: P2[]): P2[] {
+/**
+ * Rounds every corner of a polyline into a quadratic bend and samples the result. `reach` is how far before and
+ * after a corner the bend may begin (limited to half of each adjoining straight run): the larger it is, the wider
+ * and gentler the arc.
+ */
+function roundCorners(path: P2[], reach: number, steps = 18): P2[] {
   if (path.length < 3) return path;
   const out: P2[] = [path[0]];
   for (let i = 1; i < path.length - 1; i++) {
@@ -142,10 +154,9 @@ function roundCorners(path: P2[]): P2[] {
     const q = path[i + 1];
     const l0 = Math.hypot(v[0] - p[0], v[1] - p[1]);
     const l1 = Math.hypot(q[0] - v[0], q[1] - v[1]);
-    const d = Math.min(MAX_BEND, l0 * 0.5, l1 * 0.5);
+    const d = Math.min(reach, l0 * 0.5, l1 * 0.5);
     const a: P2 = [v[0] + ((p[0] - v[0]) / l0) * d, v[1] + ((p[1] - v[1]) / l0) * d];
     const b: P2 = [v[0] + ((q[0] - v[0]) / l1) * d, v[1] + ((q[1] - v[1]) / l1) * d];
-    const steps = 10;
     for (let s = 0; s <= steps; s++) {
       const t = s / steps;
       const u = 1 - t;
@@ -194,16 +205,38 @@ export function cablePath(a: WorldPort, b: WorldPort, obstacles: Obb[]): P3[] {
   const direct = directCurve(a, b);
   if (curveIsClear(direct, obstacles.map((o) => inflate(o, 0.07)))) return toHeights(direct);
 
-  // 2. the shortest way around the housings, tried with decreasing margins
+  // 2. the shortest way around the housings. Tried with the longest lead and the widest clearance first, and the
+  //    corners are rounded with the gentlest bends that still keep the cable clear of every housing.
   const dist = Math.hypot(a.x - b.x, a.z - b.z);
-  const lead = Math.min(LEAD_MAX, Math.max(LEAD_MIN, dist * 0.3));
-  const s: P2 = [a.x + a.nx * lead, a.z + a.nz * lead];
-  const e: P2 = [b.x + b.nx * lead, b.z + b.nz * lead];
-  for (const clearance of CLEARANCES) {
-    const route = routeAround(s, e, obstacles.map((o) => inflate(o, clearance)));
-    if (!route) continue;
-    const full = simplify([[a.x, a.z], ...route, [b.x, b.z]]);
-    return toHeights(densify(roundCorners(full)));
+  const safe = obstacles.map((o) => inflate(o, SAFE_GAP));
+  for (const maxLead of LEADS) {
+    const lead = Math.max(LEAD_MIN, Math.min(maxLead, dist * 0.4));
+    const s: P2 = [a.x + a.nx * lead, a.z + a.nz * lead];
+    const e: P2 = [b.x + b.nx * lead, b.z + b.nz * lead];
+    for (const clearance of CLEARANCES) {
+      const route = routeAround(s, e, obstacles.map((o) => inflate(o, clearance)));
+      if (!route) continue;
+      const full = simplify([[a.x, a.z], ...route, [b.x, b.z]]);
+      const wide = Math.min(MAX_BEND, Math.max(TIGHT_BEND, (clearance * Math.SQRT2 - SAFE_GAP) / BEND_BITE));
+      for (const reach of [wide, wide * 0.75, wide * 0.55, wide * 0.4]) {
+        if (reach < TIGHT_BEND) break;
+        const rounded = roundCorners(full, reach);
+        if (curveIsClear(rounded, safe)) return toHeights(densify(rounded, 0.12));
+      }
+    }
+  }
+
+  // 2b. cramped: the original tight rounding on the first route that exists
+  {
+    const lead = Math.min(0.34, Math.max(LEAD_MIN, dist * 0.3));
+    const s: P2 = [a.x + a.nx * lead, a.z + a.nz * lead];
+    const e: P2 = [b.x + b.nx * lead, b.z + b.nz * lead];
+    for (const clearance of CLEARANCES) {
+      const route = routeAround(s, e, obstacles.map((o) => inflate(o, clearance)));
+      if (!route) continue;
+      const full = simplify([[a.x, a.z], ...route, [b.x, b.z]]);
+      return toHeights(densify(roundCorners(full, TIGHT_BEND, 10)));
+    }
   }
 
   // 3. nothing fits (blocks are jammed together): fall back to the direct curve rather than hiding the link

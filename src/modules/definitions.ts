@@ -1,5 +1,6 @@
 import type {
   DisplayConfig,
+  IntegerConfig,
   KeyboardConfig,
   KeypadConfig,
   KeyPressure,
@@ -19,6 +20,24 @@ export const SQUARE = 2;
 export const DOCK_GAP = 0.05;
 export const MAX_TEXT_LENGTH = 2000;
 export const DEFAULT_TEXT = 'Hello, Nicque';
+export const DEFAULT_INTEGER = '42';
+/** Longest integer an Integer Block holds (digits only, the minus sign is extra). */
+export const MAX_INTEGER_DIGITS = 18;
+
+/**
+ * Reduces any string to a valid integer entry: an optional leading minus sign followed by digits. Everything else
+ * (letters, spaces, decimal points, plus signs, a minus anywhere but the start) is dropped. A lone "-" is kept so
+ * a negative number can be typed.
+ */
+export function sanitizeInteger(raw: string): string {
+  const negative = raw.trimStart().startsWith('-');
+  // no leading zeros: typing 5 after a 0 gives 5, not 05 (a single 0 is kept)
+  const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, MAX_INTEGER_DIGITS);
+  return (negative ? '-' : '') + digits;
+}
+
+/** True when `value` is a complete integer (no lone minus sign, nothing else). */
+export const isInteger = (value: string) => /^-?\d+$/.test(value);
 
 export interface ModuleDefinition {
   type: ModuleType;
@@ -164,6 +183,22 @@ const text: ModuleDefinition = {
   }),
 };
 
+/**
+ * The Integer Block is a Text Block that only accepts whole numbers. It looks and connects exactly like one (same
+ * size, buttons and connectors; its output is a text link, so it feeds a Display Block the same way).
+ */
+const integer: ModuleDefinition = {
+  type: 'integer',
+  label: 'Integer Block',
+  width: TEXT_W,
+  depth: TEXT_D,
+  ports: text.ports,
+  defaultConfig: (): IntegerConfig => ({ value: DEFAULT_INTEGER }),
+  sanitizeConfig: (raw): IntegerConfig => ({
+    value: isObj(raw) && typeof raw.value === 'string' ? sanitizeInteger(raw.value) : DEFAULT_INTEGER,
+  }),
+};
+
 const display: ModuleDefinition = {
   type: 'display',
   label: 'Display Block',
@@ -190,9 +225,10 @@ const display: ModuleDefinition = {
     },
   ],
   defaultConfig: (): DisplayConfig => ({ align: 'center' }),
-  sanitizeConfig: (raw): DisplayConfig => ({
-    align: isObj(raw) && raw.align === 'left' ? 'left' : 'center',
-  }),
+  sanitizeConfig: (raw): DisplayConfig => {
+    const align = isObj(raw) && raw.align === 'left' ? 'left' : 'center';
+    return isObj(raw) && raw.cleared === true ? { align, cleared: true } : { align };
+  },
 };
 
 export const KEY_PRESSURES: KeyPressure[] = ['light', 'normal', 'firm'];
@@ -271,7 +307,7 @@ const keypad: ModuleDefinition = {
   }),
 };
 
-export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, display, keyboard, keypad };
+export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, integer, display, keyboard, keypad };
 
 export const MODULE_TYPES = Object.keys(MODULE_DEFINITIONS) as ModuleType[];
 

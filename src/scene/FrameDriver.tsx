@@ -41,6 +41,7 @@ export function FrameDriver() {
         s.runtime !== p.runtime ||
         s.selectedId !== p.selectedId ||
         s.snap !== p.snap ||
+        s.lighting !== p.lighting ||
         s.cameraResetNonce !== p.cameraResetNonce ||
         s.pressed !== p.pressed ||
         s.linkDrag !== p.linkDrag ||

@@ -2,10 +2,13 @@ import { Bvh } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, Color, FogExp2 } from 'three';
 import { InteractionController } from '@/interactions/InteractionController';
-import { FOG_COLOR, FOG_DENSITY, QUALITY } from '@/rendering/config';
+import { QUALITY } from '@/rendering/config';
+import { LIGHTING_PRESETS } from '@/rendering/lighting';
 import { useStore } from '@/state/store';
+import { Atmosphere } from './Atmosphere';
 import { Cables, LinkPreview } from './Cables';
 import { CameraRig } from './CameraRig';
+import { DropBridge, DropPreview } from './DropBridge';
 import { Effects } from './Effects';
 import { FrameDriver } from './FrameDriver';
 import { Ground } from './Ground';
@@ -47,15 +50,19 @@ export function Scene() {
         toneMappingExposure: 1,
       }}
       onCreated={({ scene }) => {
-        scene.fog = new FogExp2(new Color(FOG_COLOR), FOG_DENSITY);
+        const look = LIGHTING_PRESETS[useStore.getState().lighting];
+        scene.fog = new FogExp2(new Color(look.fog), look.fogDensity);
       }}
       style={{ touchAction: 'none' }}
     >
       <Lighting q={q} />
+      <Atmosphere />
       <Ground />
       <Modules />
       <Cables />
       <LinkPreview />
+      <DropBridge />
+      <DropPreview />
       <CameraRig />
       <FrameDriver />
       <InteractionController />

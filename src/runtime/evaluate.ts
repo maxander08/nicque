@@ -1,4 +1,5 @@
 import { validateConnection } from '@/connections/validate';
+import { isInteger } from '@/modules/definitions';
 import type {
   ConnectionRecord,
   ConnectionRuntime,
@@ -83,6 +84,8 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   const textOut = new Map<string, string>();
   for (const m of ws.modules) {
     if (m.type === 'text' && powered.get(m.id)) textOut.set(m.id, m.config.value);
+    // an Integer Block only sends a complete whole number (a lone minus sign is not one yet)
+    if (m.type === 'integer' && powered.get(m.id)) textOut.set(m.id, isInteger(m.config.value) ? m.config.value : '');
   }
 
   /* 5. data transfer --------------------------------------------------- */
@@ -147,7 +150,8 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
           : 'Switched off. Linked blocks are not operating.',
         screen: { kind: 'off' },
       };
-    } else if (m.type === 'text') {
+    } else if (m.type === 'text' || m.type === 'integer') {
+      const noun = m.type === 'integer' ? 'number' : 'text';
       const typing = typingInto.has(m.id);
       const screen: ScreenContent = !isPowered
         ? { kind: 'off' }
@@ -161,15 +165,15 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
       const targets = valid.filter((c) => c.type === 'text' && c.from.moduleId === m.id).length;
       rt = {
         id: m.id,
-        type: 'text',
+        type: m.type,
         state: isPowered ? 'operational' : manualOff ? 'off' : 'unpowered',
         powered: isPowered,
         summary: isPowered ? 'Operational' : manualOff ? 'Off' : 'No power',
         detail: isPowered
           ? (typing ? 'Typing from a Keyboard or Keypad Block. ' : '') +
             (targets === 0
-              ? 'Operational. It has no screen of its own: link its output to a Display Block to see the text.'
-              : `Operational. Sending text to ${targets} ${targets === 1 ? 'display' : 'displays'}.`)
+              ? `Operational. It has no screen of its own: link its output to a Display Block to see the ${noun}.`
+              : `Operational. Sending ${noun} to ${targets} ${targets === 1 ? 'display' : 'displays'}.`)
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen,
       };
@@ -212,6 +216,12 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         summary = 'Source unavailable';
         detail = input.missing;
         screen = { kind: 'source-off' };
+      } else if (m.config.cleared) {
+        // the Display's own clear button: its screen is blank, the source block keeps its data
+        state = 'operational';
+        summary = 'Cleared';
+        detail = 'The screen was cleared. The linked block still holds its data and the display shows it again as soon as that changes.';
+        screen = { kind: 'cleared' };
       } else if (input.value.length === 0) {
         state = 'operational';
         summary = 'Operational';

@@ -1,6 +1,6 @@
 # Nicque — modular hardware simulator
 
-A real-time 3D, hardware-first visual programming prototype. Five physical modules (Power, Text, Display, Keyboard, Keypad) sit on an endless gray plane. You move them, link their connectors, switch power and edit text; a deterministic runtime decides what each block does.
+A real-time 3D, hardware-first visual programming prototype. Six physical modules (Power, Text, Integer, Display, Keyboard, Keypad) sit on an endless plane with selectable lighting atmospheres. You move them, link their connectors, switch power and edit values; a deterministic runtime decides what each block does.
 
 ## Commands
 
@@ -21,8 +21,8 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 | Move | drag a block. *Snap* toggles a 0.25 grid; connectors that face each other magnetically dock with a 0.05 gap; housings can never intersect. Arrow keys nudge the selected block, `R` rotates it |
 | Link | drag from one connector (status light on the cover edge) to another. Invalid links are refused with an explanation. Click a linked connector to remove its link, or use *Disconnect* / *Link* in the panels |
 | Power | every block has a small power button in its top-right header (`switchedOff` keeps its wiring while taking it out of service), plus the switch in the status drawer / inspector or `P` |
-| Edit text | select the Text Block and type in the inspector, or press its physical **Edit** / **Clear** / **Restore** buttons (the Text Block itself has no screen—link it to a Display Block to view its text; **Clear** in the Display header also empties its feeding Text Block) |
-| Add / remove blocks | *Add block* in the top bar (a Keyboard docks in front of a free Text Block and is powered automatically); *Remove* in the inspector |
+| Edit text / integers | select a Text or Integer Block and type in the inspector, or press its physical **Edit** / **Clear** / **Restore** buttons (Text and Integer Blocks have no screen—link them to a Display Block to view their value; **Clear** in the Display header clears only the Display until the source changes, while keeping the source's stored data) |
+| Add / remove blocks & lighting | use the left-edge toolbar (`LeftToolbar`) to drag blocks directly onto the 3D workspace (with live footprint preview) or switch lighting scenes (from bright studio down to pitch black); *Remove* in the inspector |
 | Keyboard | link *Keyboard → Text* (drag connector to connector, or *Link* in the status panel), then press the keys on the Keyboard's LED screen, or select it and type on your own keyboard |
 | Workspace | Save / Load (browser storage), Export / Import (JSON file), Reset. The workspace is also autosaved and restored on reload |
 

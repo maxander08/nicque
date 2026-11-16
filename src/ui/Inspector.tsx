@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { KEY_PRESSURES, MAX_TEXT_LENGTH, MODULE_DEFINITIONS } from '@/modules/definitions';
+import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isInteger } from '@/modules/definitions';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
 import { IconButton, Segmented, StateMark, Switch, panelClass, stateLabel } from './primitives';
@@ -18,9 +18,10 @@ export function Inspector() {
   const { select, setText, setPower, setAlign, clearDisplay, rotateModule, removeModule, setKeyboardPressure, disconnect } =
     useStore.getState();
   const area = useRef<HTMLTextAreaElement>(null);
+  const intInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (focusNonce > 0) area.current?.focus();
+    if (focusNonce > 0) (area.current ?? intInput.current)?.focus();
   }, [focusNonce]);
 
   if (!module || !rt || !selectedId) return null;
@@ -103,6 +104,40 @@ export function Inspector() {
           </div>
         )}
 
+        {module.type === 'integer' && (
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between">
+              <label htmlFor="integer-value" className="text-[13px] font-medium">
+                Integer
+              </label>
+              <span className="text-xs text-neutral-400">whole numbers only</span>
+            </div>
+            <input
+              id="integer-value"
+              ref={intInput}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={MAX_INTEGER_DIGITS + 1}
+              value={module.config.value}
+              onChange={(e) => setText(module.id, e.target.value)}
+              placeholder="e.g. 42 or -7"
+              spellCheck={false}
+              aria-invalid={module.config.value !== '' && !isInteger(module.config.value)}
+              className="w-full rounded-lg border border-white/12 bg-black/40 px-3 py-2 font-mono text-[15px] text-neutral-50 outline-none placeholder:text-neutral-500 focus:border-white/50"
+            />
+            <p className="mt-1.5 text-xs leading-snug text-neutral-400">
+              Only digits and a leading minus sign are accepted; anything else is ignored. Like the Text Block it has
+              no screen of its own: link its output to a Display Block to see the number.
+            </p>
+            {!rt.powered && (
+              <p className="mt-1.5 text-xs text-amber-200/90">
+                The block is unpowered. The number is kept and will be sent once power returns.
+              </p>
+            )}
+          </div>
+        )}
+
         {module.type === 'display' && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -132,7 +167,8 @@ export function Inspector() {
               </IconButton>
             </div>
             <p className="text-xs leading-snug text-neutral-400">
-              Lines wrap at word boundaries and the type size shrinks to fit. Text that still does not fit is
+              Clear blanks this screen only: the Text or Integer Block feeding it keeps its data, and the screen
+              shows it again as soon as that data changes. Lines wrap at word boundaries and the type size shrinks to fit. Text that still does not fit is
               clipped with an ellipsis.
             </p>
           </div>
