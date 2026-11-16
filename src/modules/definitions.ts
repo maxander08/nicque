@@ -6,6 +6,8 @@ import type {
   KeyPressure,
   ModuleRecord,
   ModuleType,
+  OperatorConfig,
+  OperatorType,
   PortDef,
   PowerConfig,
   TextConfig,
@@ -199,6 +201,37 @@ const integer: ModuleDefinition = {
   }),
 };
 
+/** The four operator types, with the name printed on the block and the symbol shown in the UI. */
+export const OPERATORS: Record<OperatorType, { label: string; badge: string; symbol: string; hint: string }> = {
+  adder: { label: 'Adder Block', badge: 'Adder', symbol: '+', hint: 'Operator: adds' },
+  subtractor: { label: 'Subtractor Block', badge: 'Subtractor', symbol: '−', hint: 'Operator: subtracts' },
+  multiplier: { label: 'Multiplier Block', badge: 'Multiplier', symbol: '×', hint: 'Operator: multiplies' },
+  divisor: { label: 'Divisor Block', badge: 'Divisor', symbol: '÷', hint: 'Operator: divides' },
+};
+export const OPERATOR_TYPES = Object.keys(OPERATORS) as OperatorType[];
+
+/** True for the Adder, Subtractor, Multiplier and Divisor Blocks (the blocks with the yellow operator box). */
+export const isOperatorType = (t: unknown): t is OperatorType => typeof t === 'string' && t in OPERATORS;
+
+/**
+ * An operator block has exactly the footprint, buttons and connectors of a Text Block (it looks the same); the
+ * only visual difference is the yellow operator box next to its power LED.
+ */
+const operatorDef = (type: OperatorType): ModuleDefinition => ({
+  type,
+  label: OPERATORS[type].label,
+  width: TEXT_W,
+  depth: TEXT_D,
+  ports: text.ports,
+  defaultConfig: (): OperatorConfig => ({}),
+  sanitizeConfig: (): OperatorConfig => ({}),
+});
+
+const adder = operatorDef('adder');
+const subtractor = operatorDef('subtractor');
+const multiplier = operatorDef('multiplier');
+const divisor = operatorDef('divisor');
+
 const display: ModuleDefinition = {
   type: 'display',
   label: 'Display Block',
@@ -307,7 +340,18 @@ const keypad: ModuleDefinition = {
   }),
 };
 
-export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, integer, display, keyboard, keypad };
+export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = {
+  power,
+  text,
+  integer,
+  adder,
+  subtractor,
+  multiplier,
+  divisor,
+  display,
+  keyboard,
+  keypad,
+};
 
 export const MODULE_TYPES = Object.keys(MODULE_DEFINITIONS) as ModuleType[];
 

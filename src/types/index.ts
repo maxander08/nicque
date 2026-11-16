@@ -5,7 +5,8 @@
  * from transient runtime state (RuntimeState), which is always derived by the runtime engine.
  */
 
-export type ModuleType = 'power' | 'text' | 'integer' | 'display' | 'keyboard' | 'keypad';
+export type OperatorType = 'adder' | 'subtractor' | 'multiplier' | 'divisor';
+export type ModuleType = 'power' | 'text' | 'integer' | OperatorType | 'display' | 'keyboard' | 'keypad';
 export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
 
@@ -24,6 +25,8 @@ export interface TextConfig {
 export interface IntegerConfig {
   value: string;
 }
+/** Operator blocks (Adder, Subtractor, Multiplier, Divisor) look like a Text Block and carry no data of their own yet. */
+export type OperatorConfig = Record<string, never>;
 export interface DisplayConfig {
   align: 'left' | 'center';
   /**
@@ -58,10 +61,22 @@ interface ModuleBase {
 export type PowerModule = ModuleBase & { type: 'power'; config: PowerConfig };
 export type TextModule = ModuleBase & { type: 'text'; config: TextConfig };
 export type IntegerModule = ModuleBase & { type: 'integer'; config: IntegerConfig };
+export type AdderModule = ModuleBase & { type: 'adder'; config: OperatorConfig };
+export type SubtractorModule = ModuleBase & { type: 'subtractor'; config: OperatorConfig };
+export type MultiplierModule = ModuleBase & { type: 'multiplier'; config: OperatorConfig };
+export type DivisorModule = ModuleBase & { type: 'divisor'; config: OperatorConfig };
+export type OperatorModule = AdderModule | SubtractorModule | MultiplierModule | DivisorModule;
 export type DisplayModule = ModuleBase & { type: 'display'; config: DisplayConfig };
 export type KeyboardModule = ModuleBase & { type: 'keyboard'; config: KeyboardConfig };
 export type KeypadModule = ModuleBase & { type: 'keypad'; config: KeypadConfig };
-export type ModuleRecord = PowerModule | TextModule | IntegerModule | DisplayModule | KeyboardModule | KeypadModule;
+export type ModuleRecord =
+  | PowerModule
+  | TextModule
+  | IntegerModule
+  | OperatorModule
+  | DisplayModule
+  | KeyboardModule
+  | KeypadModule;
 
 export interface PortDef {
   id: string;

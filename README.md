@@ -38,6 +38,10 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 
 Every block carries a small, subtle "nicque" mark with the block's name printed below it.
 
+## Operator Blocks
+
+Adder, Subtractor, Multiplier and Divisor Blocks look exactly like the Text Block (same housing, buttons and connectors). The only difference is a small **yellow box** next to the power LED, on the left of the header, which marks a block as an operator. They are in the block library, the Add-block menu, saved workspaces and the inspector; they are powered like any other block.
+
 ## Layout and topology
 
 ```

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isInteger } from '@/modules/definitions';
+import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isInteger, isOperatorType } from '@/modules/definitions';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
 import { IconButton, Segmented, StateMark, Switch, panelClass, stateLabel } from './primitives';
@@ -101,6 +101,18 @@ export function Inspector() {
                 The block is unpowered. The text is kept and will be sent once power returns.
               </p>
             )}
+          </div>
+        )}
+
+        {isOperatorType(module.type) && (
+          <div>
+            <div className="mb-1.5 flex items-center gap-2">
+              <span className="inline-block h-3 w-3 rounded-[3px] bg-[#ffd21a]" aria-hidden />
+              <span className="text-[13px] font-medium">Operator block</span>
+            </div>
+            <p className="text-xs leading-snug text-neutral-400">
+              The yellow box next to the power LED marks an operator block. It looks and connects like a Text Block.
+            </p>
           </div>
         )}
 

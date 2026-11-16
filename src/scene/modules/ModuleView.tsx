@@ -8,6 +8,7 @@ import type { ModuleType } from '@/types';
 import { useDisposable } from '../hooks';
 import { CORNER_RADIUS } from '../parts/Housing';
 import { PortView } from '../parts/PortView';
+import { AdderBlockView, DivisorBlockView, MultiplierBlockView, SubtractorBlockView } from './OperatorBlockViews';
 import { DisplayBlockView } from './DisplayBlockView';
 import { IntegerBlockView } from './IntegerBlockView';
 import { KeyboardBlockView } from './KeyboardBlockView';
@@ -20,6 +21,10 @@ const BODIES: Record<ModuleType, ComponentType<{ moduleId: string }>> = {
   power: PowerBlockView,
   text: TextBlockView,
   integer: IntegerBlockView,
+  adder: AdderBlockView,
+  subtractor: SubtractorBlockView,
+  multiplier: MultiplierBlockView,
+  divisor: DivisorBlockView,
   display: DisplayBlockView,
   keyboard: KeyboardBlockView,
   keypad: KeypadBlockView,

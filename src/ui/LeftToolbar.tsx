@@ -20,6 +20,10 @@ const LIBRARY: LibraryItem[] = [
   { type: 'power', label: 'Power', hint: 'Supplies other blocks' },
   { type: 'text', label: 'Text', hint: 'Holds and sends text' },
   { type: 'integer', label: 'Integer', hint: 'Holds and sends a whole number' },
+  { type: 'adder', label: 'Adder', hint: 'Operator: adds' },
+  { type: 'subtractor', label: 'Subtractor', hint: 'Operator: subtracts' },
+  { type: 'multiplier', label: 'Multiplier', hint: 'Operator: multiplies' },
+  { type: 'divisor', label: 'Divisor', hint: 'Operator: divides' },
   { type: 'display', label: 'Display', hint: 'Shows text on LEDs' },
   { type: 'keyboard', label: 'Keyboard', hint: 'Types into a Text Block' },
   { type: 'keypad', label: 'Keypad', hint: 'Digits and symbols' },
@@ -43,9 +47,16 @@ function BlockThumb({ type }: { type: ModuleType }) {
       );
     case 'text':
     case 'integer':
+    case 'adder':
+    case 'subtractor':
+    case 'multiplier':
+    case 'divisor':
       return (
         <svg {...common}>
           <rect x="14" y="5" width="28" height="26" rx="4" fill={body} stroke={edge} />
+          {type !== 'text' && type !== 'integer' && (
+            <rect x="20" y="7.9" width="3.6" height="3.6" rx="0.8" fill="#ffd21a" />
+          )}
           <circle cx="21" cy="19" r="3" fill="none" stroke={dot} strokeWidth="1.1" />
           <circle cx="28" cy="19" r="3" fill="none" stroke={dot} strokeWidth="1.1" />
           <circle cx="35" cy="19" r="3" fill="none" stroke={dot} strokeWidth="1.1" />

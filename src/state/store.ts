@@ -9,6 +9,7 @@ import {
   MAX_TEXT_LENGTH,
   createModule,
   getDefinition,
+  isOperatorType,
   sanitizeInteger,
 } from '@/modules/definitions';
 import {
@@ -398,6 +399,9 @@ export const useStore = create<Store>((set, get) => {
           s.setText(moduleId, isInt ? DEFAULT_INTEGER : DEFAULT_TEXT);
           s.notify(isInt ? 'Sample integer restored' : 'Sample text restored', 'info');
         }
+      } else if (isOperatorType(m.type)) {
+        // operator blocks share the Text Block's buttons but hold no text or number of their own
+        s.notify(`${m.name} is an operator block. It has no value to ${action === 'edit' ? 'edit' : action === 'clear' ? 'clear' : 'restore'}.`, 'info');
       } else if (m.type === 'display' && action === 'clear') {
         s.clearDisplay(moduleId);
       }

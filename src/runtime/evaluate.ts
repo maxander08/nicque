@@ -1,7 +1,8 @@
 import { validateConnection } from '@/connections/validate';
-import { isInteger } from '@/modules/definitions';
+import { OPERATORS, isInteger, isOperatorType } from '@/modules/definitions';
 import type {
   ConnectionRecord,
+  OperatorType,
   ConnectionRuntime,
   ModuleRecord,
   ModuleRuntime,
@@ -114,12 +115,15 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   const keysSent = new Set<string>();
   for (const c of valid) {
     if (c.type !== 'keys') continue;
-    const active = powered.get(c.from.moduleId) === true && powered.get(c.to.moduleId) === true;
+    const dst = byId.get(c.to.moduleId);
+    const typable = dst?.type === 'text' || dst?.type === 'integer';
+    const active = typable && powered.get(c.from.moduleId) === true && powered.get(c.to.moduleId) === true;
     let reason = 'Typing into the Text Block';
     if (powered.get(c.from.moduleId) !== true) {
       const src = ws.modules.find((m) => m.id === c.from.moduleId);
       reason = `${src?.type === 'keypad' ? 'Keypad' : 'Keyboard'} Block is not powered`;
     }
+    else if (!typable) reason = `${dst?.name ?? 'This block'} has nothing to type into`;
     else if (powered.get(c.to.moduleId) !== true) reason = 'Text Block is not powered';
     connRuntime[c.id] = { id: c.id, valid: true, active, reason };
     if (active) {
@@ -149,6 +153,20 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
             : `Supplying ${n} linked ${n === 1 ? 'block' : 'blocks'}.`
           : 'Switched off. Linked blocks are not operating.',
         screen: { kind: 'off' },
+      };
+    } else if (isOperatorType(m.type)) {
+      // Adder, Subtractor, Multiplier and Divisor Blocks: same body as a Text Block, no data of their own yet
+      const name = OPERATORS[m.type as OperatorType].label;
+      rt = {
+        id: m.id,
+        type: m.type,
+        state: isPowered ? 'operational' : manualOff ? 'off' : 'unpowered',
+        powered: isPowered,
+        summary: isPowered ? 'Operational' : manualOff ? 'Off' : 'No power',
+        detail: isPowered
+          ? `${name} is an operator block. It is powered and ready.`
+          : (unpoweredReason.get(m.id) ?? 'Not powered.'),
+        screen: isPowered ? { kind: 'empty' } : { kind: 'off' },
       };
     } else if (m.type === 'text' || m.type === 'integer') {
       const noun = m.type === 'integer' ? 'number' : 'text';

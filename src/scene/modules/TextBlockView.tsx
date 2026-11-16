@@ -5,6 +5,7 @@ import { BUTTON_CLEARANCE, ButtonCap, buttonHole } from '../parts/ButtonCap';
 import { BlockBadge } from '../parts/Decals';
 import { HeaderControls, headerHoles, useBlockOn, withPower } from '../parts/HeaderControls';
 import { Housing } from '../parts/Housing';
+import { OperatorMark } from '../parts/OperatorMark';
 import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.text;
@@ -27,9 +28,18 @@ const CONTROLS = withPower();
 /**
  * The Text Block is a pure input device: it has no screen. Its buttons edit, clear and restore the text, and the
  * result is read on a Display Block that the Text Block is linked to. The Integer Block reuses this exact body
- * and only changes the printed name.
+ * and only changes the printed name; the operator blocks (Adder, Subtractor, Multiplier,
+ * Divisor) additionally show a yellow box next to the power LED.
  */
-export function TextBlockView({ moduleId, badge = 'Text' }: { moduleId: string; badge?: string }) {
+export function TextBlockView({
+  moduleId,
+  badge = 'Text',
+  operator = false,
+}: {
+  moduleId: string;
+  badge?: string;
+  operator?: boolean;
+}) {
   const powered = useBlockOn(moduleId);
 
   const holes = useMemo(
@@ -57,6 +67,7 @@ export function TextBlockView({ moduleId, badge = 'Text' }: { moduleId: string; 
       ))}
       <HeaderControls moduleId={moduleId} width={def.width} depth={def.depth} controls={CONTROLS} />
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
+      {operator && <OperatorMark width={def.width} depth={def.depth} />}
       <BlockBadge name={badge} x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
     </group>
   );
