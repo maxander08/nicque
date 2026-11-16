@@ -2,21 +2,20 @@ import { useMemo } from 'react';
 import { MODULE_DEFINITIONS } from '@/modules/definitions';
 import { useStore } from '@/state/store';
 import { Housing } from '../parts/Housing';
-import { ButtonCap, buttonHole } from '../parts/ButtonCap';
+import { BUTTON_RADIUS, ButtonCap, buttonHole } from '../parts/ButtonCap';
 import { BlockBadge } from '../parts/Decals';
-import { LedRow } from '../parts/LedRow';
-import { EDGE, contentTopZ } from '@/modules/layout';
-import { BUTTON_CLEARANCE } from '../parts/ButtonCap';
+import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.power;
-/** The button fills the content zone below the LED band, with EDGE of cover above, below and to the sides. */
-const ZONE_TOP = contentTopZ(def.depth);
-const ZONE_BOTTOM = def.depth / 2 - EDGE;
-const BUTTON = {
-  x: 0,
-  z: (ZONE_TOP + ZONE_BOTTOM) / 2,
-  r: (ZONE_BOTTOM - ZONE_TOP) / 2 - BUTTON_CLEARANCE,
-};
+
+/**
+ * The same button as on the Text Block (radius 0.2), centred on the cover: with a block depth of 1 that leaves
+ * ≈0.29 of cover above and below it, which equals the LED band (0.28), and it lines up with the side connectors.
+ */
+const BUTTON = { x: 0, z: 0, r: BUTTON_RADIUS };
+
+/** The badge sits halfway between the west connector and the button, on the button's centre line. */
+const BADGE_X = -1.2;
 
 export function PowerBlockView({ moduleId }: { moduleId: string }) {
   const on = useStore((s) => s.runtime.modules[moduleId]?.state === 'operational');
@@ -35,8 +34,8 @@ export function PowerBlockView({ moduleId }: { moduleId: string }) {
         glow={on}
         label="Power button"
       />
-      <LedRow width={def.width} depth={def.depth} level={on ? 1 : 0} />
-      <BlockBadge name="Power" x={-1.4} z={BUTTON.z} />
+      <PowerLed width={def.width} depth={def.depth} powered={on} />
+      <BlockBadge name="Power" x={BADGE_X} z={BUTTON.z} />
     </group>
   );
 }

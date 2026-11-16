@@ -92,6 +92,7 @@ Not implemented (honest list): hardware ray tracing / ray queries (not available
 Every block derives its spacing from one module, so the rules hold site-wide:
 
 - `EDGE` (0.14) is the margin between a block's border and anything cut into or printed on its cover; screen windows sit `EDGE` from the side borders.
-- The status LEDs sit exactly `LED_INSET` (= `EDGE`) from the top border on every module, with one shared pitch (`LED_PITCH`) and equal end margins. `LedRow` only accepts the block's width and depth, so a module cannot place its LEDs anywhere else.
-- Content starts `LED_BAND` (2 × `EDGE`) below the top border; badges are centred `BADGE_INSET` above the bottom border.
+- Every module has a single round power LED (`PowerLed`) in the top-left corner, centred in the `LED_BAND` (`EDGE` from the top border) with its left edge aligned to `EDGE`.
+- Content starts `LED_BAND` (2 × `EDGE`) below the top border; badges are centred `BADGE_INSET` above the bottom border, and the Display Block shares the Keyboard Block's exact 62-cell vertical bezel geometry.
+- The Power Block provides 8 power outputs (1 west, 1 east, and 6 evenly spaced along the south edge, preserving `power-out-a`/`b`/`c` docking positions).
 - `tests/layout.test.ts` enforces these rules.

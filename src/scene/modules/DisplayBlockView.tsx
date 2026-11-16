@@ -1,19 +1,36 @@
 import { useEffect, useMemo } from 'react';
 import { makeSiliconeMaterial } from '@/materials/library';
-import { DISPLAY_SIZE, drawDisplayScreen } from '@/materials/screens';
+import {
+  DISPLAY_CELLS,
+  DISPLAY_CELLS_Y,
+  DISPLAY_H,
+  DISPLAY_W,
+  drawDisplayScreen,
+} from '@/materials/screens';
 import { BLOCK_HEIGHT, MODULE_DEFINITIONS } from '@/modules/definitions';
+import { badgeZ, contentTopZ } from '@/modules/layout';
 import { useStore } from '@/state/store';
 import { useFontsReady, useScreenTexture } from '../hooks';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
-import { EDGE, windowWidth } from '@/modules/layout';
+import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.display;
-/** The window sits EDGE from every border: the same margin as every other block. */
-const WINDOW = windowWidth(def.width);
+
+/**
+ * Same bezels as the Keyboard Block: the LED band above the window (power LED top-left), EDGE at both sides and
+ * the badge margin below. The block stays square (2 × 2); the window is the keyboard's 62-cell height.
+ * The LED lattice pitch is shared with the Keyboard Block (1.76 world units over 80 cells).
+ */
+const CELL = 1.76 / DISPLAY_CELLS;
+const PLANE_W = DISPLAY_CELLS * CELL;
+const PLANE_H = DISPLAY_CELLS_Y * CELL;
+const WINDOW_D = PLANE_H - 0.04;
+const WINDOW = { cz: contentTopZ(def.depth) + WINDOW_D / 2, w: PLANE_W - 0.04, d: WINDOW_D };
 
 export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
+  const powered = useStore((s) => s.runtime.modules[moduleId]?.powered === true);
   const align = useStore((s) => {
     const m = s.workspace.modules.find((x) => x.id === moduleId);
     return m && m.type === 'display' ? m.config.align : 'center';
@@ -21,18 +38,21 @@ export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   const fonts = useFontsReady();
 
   const holes = useMemo(
-    () => [{ cx: 0, cz: 0, w: WINDOW, d: WINDOW, r: 0.07, lip: 0.015, segments: 8 }],
+    () => [{ cx: 0, cz: WINDOW.cz, w: WINDOW.w, d: WINDOW.d, r: 0.07, lip: 0.015, segments: 8 }],
     [],
   );
 
   const text = screen.kind === 'text' ? screen.text : '';
   const tex = useScreenTexture(
-    DISPLAY_SIZE,
-    DISPLAY_SIZE,
+    DISPLAY_W,
+    DISPLAY_H,
     (ctx) => drawDisplayScreen(ctx, screen, align),
     [screen.kind, text, align, fonts],
   );
-  const silicone = useMemo(() => makeSiliconeMaterial(tex), [tex]);
+  const silicone = useMemo(
+    () => makeSiliconeMaterial(tex, [1, DISPLAY_CELLS_Y / DISPLAY_CELLS]),
+    [tex],
+  );
   useEffect(
     () => () => {
       silicone.material.dispose();
@@ -44,14 +64,17 @@ export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   return (
     <group>
       <Housing width={def.width} depth={def.depth} holes={holes} />
-      <mesh position={[0, BLOCK_HEIGHT - 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} material={silicone.material}
+      <mesh
+        position={[0, BLOCK_HEIGHT - 0.01, WINDOW.cz]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        material={silicone.material}
         receiveShadow
         userData={{ pick: { kind: 'screen', moduleId } }}
       >
-        <planeGeometry args={[WINDOW + 0.04, WINDOW + 0.04]} />
+        <planeGeometry args={[PLANE_W, PLANE_H]} />
       </mesh>
-      {/* no LED band on this block: the badge is centred in the cover margin below the window */}
-      <BlockBadge name="Display" x={0} z={def.depth / 2 - EDGE / 2} width={0.34} height={0.14} />
+      <PowerLed width={def.width} depth={def.depth} powered={powered} />
+      <BlockBadge name="Display" x={0} z={badgeZ(def.depth)} />
     </group>
   );
 }

@@ -18,14 +18,21 @@ import { makeDotMaskCanvas } from './textures';
 
 export const SCREEN_FONT = '"Atkinson Hyperlegible", "Inter Variable", "Segoe UI", system-ui, sans-serif';
 
-export const DISPLAY_SIZE = 1024;
+/**
+ * The Display Block's LED screen: 80 × 62 cells (0.022 per cell → 1.76 × 1.364), so its window has exactly the
+ * same bezels as the Keyboard Block's (EDGE at the sides, the LED band above, the badge margin below).
+ */
 export const DISPLAY_CELLS = 80;
+export const DISPLAY_CELLS_Y = 62;
+export const DISPLAY_CELL_PX = 16;
+export const DISPLAY_W = DISPLAY_CELLS * DISPLAY_CELL_PX;
+export const DISPLAY_H = DISPLAY_CELLS_Y * DISPLAY_CELL_PX;
 export const TEXT_SCREEN_W = 1024;
 /** Matches the Text Block window (1.72 × 0.832) plus its 0.02 overlap on each side: 1.76 × 0.872 → 1024 × 508 px. */
 export const TEXT_SCREEN_H = 508;
 
 let dotMask: HTMLCanvasElement | null = null;
-const getDotMask = () => (dotMask ??= makeDotMaskCanvas(DISPLAY_SIZE, DISPLAY_CELLS, 0.24));
+const getDotMask = () => (dotMask ??= makeDotMaskCanvas(DISPLAY_W, DISPLAY_CELLS, 0.24));
 
 const measureCtx = (() => {
   let c: CanvasRenderingContext2D | null = null;
@@ -67,11 +74,12 @@ export function drawDisplayScreen(
   content: ScreenContent,
   align: 'left' | 'center',
 ) {
-  const S = DISPLAY_SIZE;
+  const W = DISPLAY_W;
+  const H = DISPLAY_H;
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, S, S);
+  ctx.fillRect(0, 0, W, H);
 
   if (content.kind === 'off') {
     ctx.restore();
@@ -79,28 +87,30 @@ export function drawDisplayScreen(
   }
 
   // Idle LED backlight: deep indigo wash, like the reference pads at low brightness.
-  const g = ctx.createLinearGradient(0, 0, S, S);
+  const g = ctx.createLinearGradient(0, 0, W, H);
   g.addColorStop(0, '#171d44');
   g.addColorStop(0.55, '#1b1740');
   g.addColorStop(1, '#2a1642');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, S, S);
+  ctx.fillRect(0, 0, W, H);
 
-  const pad = 110;
-  const box = { x: pad, y: pad, w: S - pad * 2, h: S - pad * 2 };
+  const padX = 130;
+  const padY = 96;
+  const box = { x: padX, y: padY, w: W - padX * 2, h: H - padY * 2 };
+  const cy = H / 2;
 
   if (content.kind === 'text') {
     const layout = layoutText(content.text, {
       width: box.w,
       height: box.h,
-      maxFont: 200,
-      minFont: 52,
+      maxFont: 240,
+      minFont: 62,
       lineHeight: 1.16,
       measure: measurer(700),
     });
     ctx.fillStyle = '#f2f6ff';
     ctx.shadowColor = 'rgba(160,190,255,0.55)';
-    ctx.shadowBlur = 16;
+    ctx.shadowBlur = 20;
     drawLines(ctx, layout.lines, layout.fontSize, 1.16, box, align, 700);
     ctx.shadowBlur = 0;
   } else {
@@ -113,33 +123,35 @@ export function drawDisplayScreen(
     ctx.fillStyle = '#dfe6f7';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `700 78px ${SCREEN_FONT}`;
-    ctx.fillText(title, S / 2, S / 2 - 30);
+    ctx.font = `700 96px ${SCREEN_FONT}`;
+    ctx.fillText(title, W / 2, cy + 10);
     ctx.fillStyle = '#9aa6c8';
-    ctx.font = `400 44px ${SCREEN_FONT}`;
+    ctx.font = `400 54px ${SCREEN_FONT}`;
     const sl = layoutText(sub, {
       width: box.w,
-      height: 140,
-      maxFont: 44,
-      minFont: 30,
+      height: 170,
+      maxFont: 54,
+      minFont: 36,
       lineHeight: 1.2,
       measure: measurer(400),
     });
-    drawLines(ctx, sl.lines, sl.fontSize, 1.2, { x: box.x, y: S / 2 + 20, w: box.w, h: 140 }, 'center', 400);
+    drawLines(ctx, sl.lines, sl.fontSize, 1.2, { x: box.x, y: cy + 80, w: box.w, h: 170 }, 'center', 400);
     // simple "unlinked" glyph
+    const gy = cy - 190;
     ctx.strokeStyle = '#9aa6c8';
-    ctx.lineWidth = 12;
+    ctx.lineWidth = 14;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(S / 2 - 40, 270, 34, Math.PI * 0.75, Math.PI * 2.25);
-    ctx.moveTo(S / 2 + 40, 270 + 0);
-    ctx.arc(S / 2 + 40, 270, 34, Math.PI * 1.75, Math.PI * 1.25);
+    ctx.arc(W / 2 - 48, gy, 40, Math.PI * 0.75, Math.PI * 2.25);
+    ctx.moveTo(W / 2 + 48, gy);
+    ctx.arc(W / 2 + 48, gy, 40, Math.PI * 1.75, Math.PI * 1.25);
     ctx.stroke();
   }
 
-  // LED diffuser: multiply by the lattice mask.
+  // LED diffuser: multiply by the lattice mask, anchored at the bottom-left (the albedo lattice origin)
   ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(getDotMask(), 0, 0, S, S);
+  const tile = getDotMask();
+  ctx.drawImage(tile, 0, H - tile.height);
   ctx.restore();
 }
 

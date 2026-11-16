@@ -30,42 +30,53 @@ export interface ModuleDefinition {
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
 export const KEYBOARD_W = SQUARE * 2 + DOCK_GAP;
-const POWER_W = SQUARE * 2 + DOCK_GAP;
 const POWER_D = 1;
+
+/**
+ * Power Block connector layout: 8 outputs — 1 on the west edge, 1 on the east edge and 6 along the south edge.
+ *
+ *   ┌──────────────────────────────────────────────┐
+ *   │ ●                                            │
+ * W ▮                      (power)                 ▮ E
+ *   │                                              │
+ *   └──▮─────▮─────▮─────▮─────▮─────▮─────────────┘
+ *        S1    S2    S3    S4    S5    S6
+ *
+ * The south pitch is a third of a docked block's width, so S2 and S5 sit exactly where two 2-wide blocks
+ * dock side by side (the original outputs A and B). A plug is 0.48 wide, which leaves a 0.2 gap between
+ * neighbours, and POWER_END keeps the outer plugs clear of the rounded corners.
+ */
+const POWER_PITCH = (SQUARE + DOCK_GAP) / 3;
+const POWER_PLUG = 0.48;
+const POWER_END = POWER_PLUG / 2 + 0.25;
+const POWER_W = 5 * POWER_PITCH + 2 * POWER_END;
+const southX = (i: number) => (i - 2.5) * POWER_PITCH;
+
+const powerOut = (id: string, label: string, x: number, z: number, nx: number, nz: number): PortDef => ({
+  id,
+  label: `Power output ${label}`,
+  type: 'power',
+  direction: 'out',
+  local: { x, z },
+  normal: { x: nx, z: nz },
+  capacity: 1,
+});
 
 const power: ModuleDefinition = {
   type: 'power',
   label: 'Power Block',
   width: POWER_W,
   depth: POWER_D,
+  // ids a–c are the original outputs and keep their meaning in saved workspaces
   ports: [
-    {
-      id: 'power-out-a',
-      label: 'Power output A',
-      type: 'power',
-      direction: 'out',
-      local: { x: -(SQUARE + DOCK_GAP) / 2, z: POWER_D / 2 },
-      normal: { x: 0, z: 1 },
-      capacity: 1,
-    },
-    {
-      id: 'power-out-b',
-      label: 'Power output B',
-      type: 'power',
-      direction: 'out',
-      local: { x: (SQUARE + DOCK_GAP) / 2, z: POWER_D / 2 },
-      normal: { x: 0, z: 1 },
-      capacity: 1,
-    },
-    {
-      id: 'power-out-c',
-      label: 'Power output C',
-      type: 'power',
-      direction: 'out',
-      local: { x: POWER_W / 2, z: 0 },
-      normal: { x: 1, z: 0 },
-      capacity: 1,
-    },
+    powerOut('power-out-a', 'A (south 2)', southX(1), POWER_D / 2, 0, 1),
+    powerOut('power-out-b', 'B (south 5)', southX(4), POWER_D / 2, 0, 1),
+    powerOut('power-out-c', 'C (east)', POWER_W / 2, 0, 1, 0),
+    powerOut('power-out-d', 'D (west)', -POWER_W / 2, 0, -1, 0),
+    powerOut('power-out-e', 'E (south 1)', southX(0), POWER_D / 2, 0, 1),
+    powerOut('power-out-f', 'F (south 3)', southX(2), POWER_D / 2, 0, 1),
+    powerOut('power-out-g', 'G (south 4)', southX(3), POWER_D / 2, 0, 1),
+    powerOut('power-out-h', 'H (south 6)', southX(5), POWER_D / 2, 0, 1),
   ],
   defaultConfig: (): PowerConfig => ({ enabled: true }),
   sanitizeConfig: (raw): PowerConfig => ({

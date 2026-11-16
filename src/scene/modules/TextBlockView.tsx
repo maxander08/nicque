@@ -10,13 +10,13 @@ import { BLOCK_HEIGHT, MODULE_DEFINITIONS } from '@/modules/definitions';
 import { getMaterials } from '@/materials/library';
 import { useStore } from '@/state/store';
 import { useDisposable, useFontsReady, useScreenTexture } from '../hooks';
-import { BUTTON_CLEARANCE, ButtonCap, buttonHole } from '../parts/ButtonCap';
+import { BUTTON_CLEARANCE, BUTTON_RADIUS, ButtonCap, buttonHole } from '../parts/ButtonCap';
 import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
-import { LedRow } from '../parts/LedRow';
+import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.text;
-const BTN_R = 0.2;
+const BTN_R = BUTTON_RADIUS;
 const BTN_X = 0.55;
 /** Buttons end 0.06 above the badge; the screen sits EDGE below the LED band and EDGE above the buttons. */
 const BTN_BOTTOM = badgeZ(def.depth) - 0.12;
@@ -32,7 +32,7 @@ const BUTTONS = [
 
 export function TextBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
-  const operational = useStore((s) => s.runtime.modules[moduleId]?.state === 'operational');
+  const powered = useStore((s) => s.runtime.modules[moduleId]?.powered === true);
   const fonts = useFontsReady();
   const m = getMaterials();
 
@@ -90,7 +90,7 @@ export function TextBlockView({ moduleId }: { moduleId: string }) {
           label={b.label}
         />
       ))}
-      <LedRow width={def.width} depth={def.depth} level={operational ? 1 : 0} />
+      <PowerLed width={def.width} depth={def.depth} powered={powered} />
       <BlockBadge name="Text" x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
     </group>
   );

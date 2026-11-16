@@ -11,6 +11,8 @@ import { getIconTexture } from './Decals';
 const CAP_TOP = BLOCK_HEIGHT + 0.004;
 const CAP_BASE = 0.2;
 export const BUTTON_CLEARANCE = 0.014;
+/** Radius of every physical button on every block, so they all match. */
+export const BUTTON_RADIUS = 0.2;
 
 /** Hole spec for the housing cover so a button of `radius` can sit in a real opening. */
 export const buttonHole = (x: number, z: number, radius: number) => ({
