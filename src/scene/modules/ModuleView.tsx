@@ -10,6 +10,7 @@ import { CORNER_RADIUS } from '../parts/Housing';
 import { PortView } from '../parts/PortView';
 import { DisplayBlockView } from './DisplayBlockView';
 import { KeyboardBlockView } from './KeyboardBlockView';
+import { KeypadBlockView } from './KeypadBlockView';
 import { PowerBlockView } from './PowerBlockView';
 import { TextBlockView } from './TextBlockView';
 
@@ -19,6 +20,7 @@ const BODIES: Record<ModuleType, ComponentType<{ moduleId: string }>> = {
   text: TextBlockView,
   display: DisplayBlockView,
   keyboard: KeyboardBlockView,
+  keypad: KeypadBlockView,
 };
 
 const ringMaterial = new MeshBasicMaterial({

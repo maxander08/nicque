@@ -6,7 +6,7 @@ import {
   PRESSURE_PROFILES,
   actuates,
   effectivePressure,
-  keyAtUv,
+  keyAtScreen,
   keyById,
   repeatInterval,
 } from '@/modules/keyboard';
@@ -36,6 +36,10 @@ type DragState =
       actuated: boolean;
       timer: number;
     };
+
+/** Type of a module, looked up in the current store state. */
+const moduleTypeOf = (st: ReturnType<typeof useStore.getState>, id: string) =>
+  st.workspace.modules.find((m) => m.id === id)?.type;
 
 const THRESHOLD = 4;
 const GROUND = new Plane(new Vector3(0, 1, 0), 0);
@@ -119,7 +123,7 @@ export function InteractionController() {
     const fireKey = (d: Extract<DragState, { kind: 'keys' }>) => {
       const st = useStore.getState();
       const kb = st.workspace.modules.find((m) => m.id === d.moduleId);
-      if (!kb || kb.type !== 'keyboard' || d.actuated) return;
+      if (!kb || (kb.type !== 'keyboard' && kb.type !== 'keypad') || d.actuated) return;
       if (!actuates(d.pressure, kb.config.pressure)) return;
       d.actuated = true;
       st.pressKey(d.moduleId, d.keyId, d.pressure);
@@ -220,10 +224,13 @@ export function InteractionController() {
       if (drag) endDrag();
       const st = useStore.getState();
       let pk = pickAt(e);
-      let key = null as ReturnType<typeof keyAtUv>;
+      let key = null as ReturnType<typeof keyAtScreen>;
       if (pk?.kind === 'keys') {
         // keys only react on a powered keyboard; the gaps between them (or an unpowered screen) are inert
-        key = pk.uv && st.runtime.modules[pk.moduleId]?.powered ? keyAtUv(pk.uv.u, pk.uv.v) : null;
+        key =
+          pk.uv && st.runtime.modules[pk.moduleId]?.powered
+            ? keyAtScreen(moduleTypeOf(st, pk.moduleId), pk.uv.u, pk.uv.v)
+            : null;
         if (!key) pk = { kind: 'screen', moduleId: pk.moduleId };
       }
       if (!pk) {
@@ -299,7 +306,7 @@ export function InteractionController() {
           st.setHover(null);
           const over =
             pk.kind === 'keys' && pk.uv && st.runtime.modules[pk.moduleId]?.powered
-              ? keyAtUv(pk.uv.u, pk.uv.v)
+              ? keyAtScreen(moduleTypeOf(st, pk.moduleId), pk.uv.u, pk.uv.v)
               : null;
           setCursor(over ? 'pointer' : 'default');
         } else if (pk.kind === 'port') {

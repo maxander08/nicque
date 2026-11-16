@@ -39,10 +39,15 @@ export interface MissingLink {
  */
 export function missingLinks(ws: Workspace): MissingLink[] {
   const out: MissingLink[] = [];
+  const seen = new Set<string>();
   for (const m of ws.modules) {
-    for (const p of MODULE_DEFINITIONS[m.type].ports) {
-      if (p.direction !== 'in') continue;
-      const used = ws.connections.some((c) => c.to.moduleId === m.id && c.to.portId === p.id);
+    const inputs = MODULE_DEFINITIONS[m.type].ports.filter((p) => p.direction === 'in');
+    for (const p of inputs) {
+      // a block with several inputs of one type (the Text Block's two key inputs) needs only one of them linked
+      const sameType = inputs.filter((q) => q.type === p.type);
+      const used = ws.connections.some(
+        (c) => c.to.moduleId === m.id && sameType.some((q) => q.id === c.to.portId),
+      );
       if (used) continue;
       const source = ws.modules.find(
         (s) =>
@@ -50,9 +55,12 @@ export function missingLinks(ws: Workspace): MissingLink[] {
           MODULE_DEFINITIONS[s.type].ports.some((sp) => sp.direction === 'out' && sp.type === p.type) &&
           findFreePortPair(ws, s, m, p.type),
       );
-      if (source) {
+      if (!source) continue;
+      const key = `${source.id}->${m.id}:${p.type}`;
+      if (!seen.has(key)) {
+        seen.add(key);
         out.push({
-          key: `${source.id}->${m.id}:${p.type}`,
+          key,
           label: `${source.name} → ${m.name}`,
           type: p.type,
           fromId: source.id,

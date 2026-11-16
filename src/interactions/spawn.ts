@@ -13,24 +13,29 @@ const free = (ws: Workspace, probe: ModuleRecord, margin = 0.01) =>
 const draft = (type: ModuleType, position: Vec2, rotation = 0): ModuleRecord =>
   ({ id: '__new__', type, name: '', position, rotation, config: {} }) as unknown as ModuleRecord;
 
+type KeySourceType = 'keyboard' | 'keypad';
+const isKeySource = (t: ModuleType): t is KeySourceType => t === 'keyboard' || t === 'keypad';
+
 /**
- * A Keyboard Block is docked in front of a Text Block whose keyboard input is still free, so that the two
+ * A Keyboard or Keypad Block is docked in front of a Text Block that still has a free key input, so that the two
  * connectors face each other and only the link itself is left to make.
  */
-function dockedKeyboard(ws: Workspace): { position: Vec2; rotation: number } | null {
-  const keyOut = MODULE_DEFINITIONS.keyboard.ports.find((p) => p.id === 'key-out')!;
+function dockedKeySource(ws: Workspace, type: KeySourceType): { position: Vec2; rotation: number } | null {
+  const keyOut = MODULE_DEFINITIONS[type].ports.find((p) => p.id === 'key-out')!;
+  const keyInputs = MODULE_DEFINITIONS.text.ports.filter((p) => p.type === 'keys' && p.direction === 'in');
   for (const text of ws.modules) {
     if (text.type !== 'text') continue;
-    const inPort = MODULE_DEFINITIONS.text.ports.find((p) => p.id === 'key-in')!;
-    const used = ws.connections.some((c) => c.to.moduleId === text.id && c.to.portId === inPort.id);
-    if (used) continue;
-    const q = portWorld(text, inPort);
-    for (let rotation = 0; rotation < 4; rotation++) {
-      const p0 = portWorld(draft('keyboard', { x: 0, z: 0 }, rotation), keyOut);
-      if (p0.nx * q.nx + p0.nz * q.nz > -0.9) continue;
-      const position = { x: q.x + q.nx * DOCK_GAP - p0.x, z: q.z + q.nz * DOCK_GAP - p0.z };
-      if (Math.abs(position.x) > WORLD_LIMIT || Math.abs(position.z) > WORLD_LIMIT) continue;
-      if (free(ws, draft('keyboard', position, rotation))) return { position, rotation };
+    for (const inPort of keyInputs) {
+      const used = ws.connections.some((c) => c.to.moduleId === text.id && c.to.portId === inPort.id);
+      if (used) continue;
+      const q = portWorld(text, inPort);
+      for (let rotation = 0; rotation < 4; rotation++) {
+        const p0 = portWorld(draft(type, { x: 0, z: 0 }, rotation), keyOut);
+        if (p0.nx * q.nx + p0.nz * q.nz > -0.9) continue;
+        const position = { x: q.x + q.nx * DOCK_GAP - p0.x, z: q.z + q.nz * DOCK_GAP - p0.z };
+        if (Math.abs(position.x) > WORLD_LIMIT || Math.abs(position.z) > WORLD_LIMIT) continue;
+        if (free(ws, draft(type, position, rotation))) return { position, rotation };
+      }
     }
   }
   return null;
@@ -46,8 +51,8 @@ function freeSpot(ws: Workspace, type: ModuleType): Vec2 {
 }
 
 export function spawnPlacement(ws: Workspace, type: ModuleType): { position: Vec2; rotation: number } {
-  if (type === 'keyboard') {
-    const docked = dockedKeyboard(ws);
+  if (isKeySource(type)) {
+    const docked = dockedKeySource(ws, type);
     if (docked) return docked;
   }
   return { position: freeSpot(ws, type), rotation: 0 };

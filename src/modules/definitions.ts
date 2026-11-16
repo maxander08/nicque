@@ -1,6 +1,7 @@
 import type {
   DisplayConfig,
   KeyboardConfig,
+  KeypadConfig,
   KeyPressure,
   ModuleRecord,
   ModuleType,
@@ -84,6 +85,9 @@ const power: ModuleDefinition = {
   }),
 };
 
+/** Distance between the two key inputs on the south edge of a Text Block. */
+export const TEXT_KEY_PITCH = 1;
+
 const text: ModuleDefinition = {
   type: 'text',
   label: 'Text Block',
@@ -108,12 +112,23 @@ const text: ModuleDefinition = {
       normal: { x: 1, z: 0 },
       capacity: 4,
     },
+    // Two key inputs along the south edge. The ids stay stable ('key-in' is the original single input) so saved
+    // workspaces keep their links. Either one accepts a Keyboard Block or a Keypad Block.
     {
       id: 'key-in',
-      label: 'Keyboard input',
+      label: 'Key input (south 1)',
       type: 'keys',
       direction: 'in',
-      local: { x: 0, z: SQUARE / 2 },
+      local: { x: -TEXT_KEY_PITCH / 2, z: SQUARE / 2 },
+      normal: { x: 0, z: 1 },
+      capacity: 1,
+    },
+    {
+      id: 'key-in-2',
+      label: 'Key input (south 2)',
+      type: 'keys',
+      direction: 'in',
+      local: { x: TEXT_KEY_PITCH / 2, z: SQUARE / 2 },
       normal: { x: 0, z: 1 },
       capacity: 1,
     },
@@ -191,7 +206,47 @@ const keyboard: ModuleDefinition = {
   }),
 };
 
-export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, display, keyboard };
+/**
+ * Keypad Block: a minimal, square sibling of the Keyboard Block with only 0–9 # * + . , ~ (a 4 × 4 pad).
+ * Same connectors as the keyboard (power in on the east edge, key output on the north edge), so it plugs into
+ * either key input of a Text Block.
+ */
+export const KEYPAD_D = 2.4;
+
+const keypad: ModuleDefinition = {
+  type: 'keypad',
+  label: 'Keypad Block',
+  width: SQUARE,
+  depth: KEYPAD_D,
+  ports: [
+    {
+      id: 'power-in',
+      label: 'Power input',
+      type: 'power',
+      direction: 'in',
+      local: { x: SQUARE / 2, z: 0 },
+      normal: { x: 1, z: 0 },
+      capacity: 1,
+    },
+    {
+      // aligned with the left key input of a Text Block that sits directly in front of it
+      id: 'key-out',
+      label: 'Keypad output',
+      type: 'keys',
+      direction: 'out',
+      local: { x: -TEXT_KEY_PITCH / 2, z: -KEYPAD_D / 2 },
+      normal: { x: 0, z: -1 },
+      capacity: 1,
+    },
+  ],
+  defaultConfig: (): KeypadConfig => ({ pressure: 'normal' }),
+  sanitizeConfig: (raw): KeypadConfig => ({
+    pressure:
+      isObj(raw) && (raw.pressure === 'light' || raw.pressure === 'firm') ? raw.pressure : 'normal',
+  }),
+};
+
+export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, display, keyboard, keypad };
 
 export const MODULE_TYPES = Object.keys(MODULE_DEFINITIONS) as ModuleType[];
 

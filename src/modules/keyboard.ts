@@ -90,10 +90,41 @@ function buildLayout(): KeyDef[] {
 
 export const KEYS: readonly KeyDef[] = buildLayout();
 
-const byId = new Map(KEYS.map((k) => [k.id, k]));
+/* ---- keypad layout ------------------------------------------------------------------------ */
+
+/**
+ * The Keypad Block is a 4 × 4 pad with exactly sixteen keys: 0–9 # * + . , ~
+ * Every key types its own character; Shift and Caps Lock make no difference to it.
+ */
+export const KEYPAD_COLS = 4;
+export const KEYPAD_ROWS = 4;
+const KEYPAD_ROWS_SPEC = ['123+', '456*', '789#', '~0.,'];
+
+/** Characters the Keypad Block can type. */
+export const KEYPAD_CHARS = KEYPAD_ROWS_SPEC.join('');
+
+/** Id of a keypad key. The `pad:` prefix keeps them apart from the keyboard's `KeyboardEvent.code` ids. */
+export const padKeyId = (ch: string) => `pad:${ch}`;
+
+function buildKeypad(): KeyDef[] {
+  const keys: KeyDef[] = [];
+  KEYPAD_ROWS_SPEC.forEach((row, r) => {
+    Array.from(row).forEach((ch, c) => {
+      keys.push({ id: padKeyId(ch), code: padKeyId(ch), kind: 'char', base: ch, shifted: ch, label: '', row: r, x: c, w: 1 });
+    });
+  });
+  return keys;
+}
+
+export const KEYPAD_KEYS: readonly KeyDef[] = buildKeypad();
+
+const byId = new Map<string, KeyDef>([...KEYS, ...KEYPAD_KEYS].map((k) => [k.id, k]));
 const byCode = new Map(KEYS.map((k) => [k.code, k]));
+const padByChar = new Map(KEYPAD_KEYS.map((k) => [k.base, k]));
 export const keyById = (id: string) => byId.get(id);
 export const keyByCode = (code: string) => byCode.get(code);
+/** The keypad key that types a given character, if the keypad has one. */
+export const padKeyByChar = (ch: string) => padByChar.get(ch);
 
 /* ---- characters and edits ---------------------------------------------------------------- */
 
@@ -210,4 +241,43 @@ export function keyAtUv(u: number, v: number): KeyDef | null {
     if (x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h) return k;
   }
   return null;
+}
+
+/* ---- keypad screen geometry ---------------------------------------------------------------- */
+
+/** The keypad screen has the same LED pitch as the keyboard; its window is a square of 80 × 80 cells. */
+export const KP_CELLS = 80;
+export const KP_TEX_W = KP_CELLS * KB_CELL_PX;
+export const KP_TEX_H = KP_CELLS * KB_CELL_PX;
+
+const KP_PAD = 30;
+const KP_CELL_W = (KP_TEX_W - KP_PAD * 2) / KEYPAD_COLS;
+const KP_CELL_H = (KP_TEX_H - KP_PAD * 2) / KEYPAD_ROWS;
+export const KP_KEY_GAP = 18;
+
+/** Outer cell of a keypad key in texture pixels (no gap). */
+export function padKeyCell(k: KeyDef) {
+  return { x: KP_PAD + k.x * KP_CELL_W, y: KP_PAD + k.row * KP_CELL_H, w: k.w * KP_CELL_W, h: KP_CELL_H };
+}
+
+/** Visible keycap of a keypad key in texture pixels. */
+export function padKeyCap(k: KeyDef) {
+  const c = padKeyCell(k);
+  return { x: c.x + KP_KEY_GAP / 2, y: c.y + KP_KEY_GAP / 2, w: c.w - KP_KEY_GAP, h: c.h - KP_KEY_GAP };
+}
+
+/** Keypad key under a point of the screen (`u`/`v` as in `keyAtUv`). */
+export function padKeyAtUv(u: number, v: number): KeyDef | null {
+  const x = u * KP_TEX_W;
+  const y = (1 - v) * KP_TEX_H;
+  for (const k of KEYPAD_KEYS) {
+    const c = padKeyCell(k);
+    if (x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h) return k;
+  }
+  return null;
+}
+
+/** Key under a point of a key-source screen: the Keypad Block has its own 4 × 4 layout. */
+export function keyAtScreen(moduleType: string | undefined, u: number, v: number): KeyDef | null {
+  return moduleType === 'keypad' ? padKeyAtUv(u, v) : keyAtUv(u, v);
 }

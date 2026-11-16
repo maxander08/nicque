@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { TAB_TEXT, keyByCode, type KeyEdit } from '@/modules/keyboard';
+import { KEYPAD_CHARS, TAB_TEXT, keyByCode, padKeyByChar, type KeyDef, type KeyEdit } from '@/modules/keyboard';
 import { useStore } from '@/state/store';
 
 const isField = (t: EventTarget | null) =>
@@ -14,8 +14,13 @@ function editOf(e: KeyboardEvent): KeyEdit | null {
   return null;
 }
 
+/** What a physical key press types on a Keypad Block: only its own characters (0–9 # * + . , ~). */
+function padEditOf(e: KeyboardEvent): KeyEdit | null {
+  return e.key.length === 1 && KEYPAD_CHARS.includes(e.key) ? { type: 'insert', text: e.key } : null;
+}
+
 /**
- * Physical keyboard → Keyboard Block. While a powered Keyboard Block is selected, the real keyboard types
+ * Physical keyboard → Keyboard or Keypad Block. While a powered Keyboard Block is selected, the real keyboard types
  * through it (into the linked Text Block) and the matching keys light up on its LED screen. The listener runs
  * in the capture phase so typed letters never trigger the global shortcuts (R, P, ...). Keys that do not
  * type (Escape, arrows, function keys) still reach the shortcuts.
@@ -25,7 +30,7 @@ export function useKeyboardTyping() {
     const active = () => {
       const st = useStore.getState();
       const kb = st.workspace.modules.find((m) => m.id === st.selectedId);
-      return kb && kb.type === 'keyboard' && st.runtime.modules[kb.id]?.powered ? kb : null;
+      return kb && (kb.type === 'keyboard' || kb.type === 'keypad') && st.runtime.modules[kb.id]?.powered ? kb : null;
     };
 
     const syncMods = (id: string, e: KeyboardEvent) =>
@@ -39,11 +44,12 @@ export function useKeyboardTyping() {
       const kb = active();
       if (!kb) return;
       const st = useStore.getState();
-      const isModifier = e.key === 'Shift' || e.key === 'CapsLock';
-      const edit = editOf(e);
+      const pad = kb.type === 'keypad';
+      const isModifier = !pad && (e.key === 'Shift' || e.key === 'CapsLock');
+      const edit = pad ? padEditOf(e) : editOf(e);
       if (!edit && !isModifier) return;
 
-      const key = keyByCode(e.code);
+      const key = pad ? padKeyByChar(e.key) : keyByCode(e.code);
       if (key) st.setKeyDown(kb.id, key.id, 0.8);
       syncMods(kb.id, e);
       if (edit) st.typeEdit(kb.id, edit, e.repeat);
@@ -54,9 +60,18 @@ export function useKeyboardTyping() {
     const onUp = (e: KeyboardEvent) => {
       const st = useStore.getState();
       const id = st.selectedId;
+      if (!id) return;
+      const type = st.workspace.modules.find((m) => m.id === id)?.type;
+      if (type === 'keypad') {
+        // the produced character can change while Shift is released first (# → 3), so Shift releases every key
+        const key: KeyDef | undefined = padKeyByChar(e.key);
+        if (key) st.setKeyDown(id, key.id, null);
+        if (e.key === 'Shift') st.clearKeys(id);
+        return;
+      }
       const key = keyByCode(e.code);
-      if (id && key) st.setKeyDown(id, key.id, null);
-      if (id && st.workspace.modules.find((m) => m.id === id)?.type === 'keyboard') syncMods(id, e);
+      if (key) st.setKeyDown(id, key.id, null);
+      if (type === 'keyboard') syncMods(id, e);
     };
 
     const release = () => useStore.getState().clearKeys();

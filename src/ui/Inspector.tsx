@@ -121,7 +121,7 @@ export function Inspector() {
           </div>
         )}
 
-        {module.type === 'keyboard' && (
+        {(module.type === 'keyboard' || module.type === 'keypad') && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-medium">Key pressure</span>
@@ -133,9 +133,11 @@ export function Inspector() {
               />
             </div>
             <p className="text-xs leading-snug text-neutral-400">
-              Press the keys on its LED screen, or type on your own keyboard while this block is selected. Touch and
-              pen need that much force to register a key, and holding a key harder repeats it faster. A mouse
-              always counts as a firm press.
+              {module.type === 'keypad'
+                ? 'Press the keys on its LED screen (0–9 # * + . , ~), or type those characters on your own keyboard while this block is selected. '
+                : 'Press the keys on its LED screen, or type on your own keyboard while this block is selected. '}
+              Touch and pen need that much force to register a key, and holding a key harder repeats it faster. A
+              mouse always counts as a firm press.
             </p>
           </div>
         )}

@@ -5,7 +5,7 @@
  * from transient runtime state (RuntimeState), which is always derived by the runtime engine.
  */
 
-export type ModuleType = 'power' | 'text' | 'display' | 'keyboard';
+export type ModuleType = 'power' | 'text' | 'display' | 'keyboard' | 'keypad';
 export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
 
@@ -24,11 +24,12 @@ export interface DisplayConfig {
   align: 'left' | 'center';
 }
 
-/** Key pressure sensitivity of the Keyboard Block (actuation force and key-repeat behaviour). */
+/** Key pressure sensitivity of the Keyboard and Keypad Blocks (actuation force and key-repeat behaviour). */
 export type KeyPressure = 'light' | 'normal' | 'firm';
 export interface KeyboardConfig {
   pressure: KeyPressure;
 }
+export type KeypadConfig = KeyboardConfig;
 
 interface ModuleBase {
   /** Stable identifier, preserved across save / load. */
@@ -44,7 +45,8 @@ export type PowerModule = ModuleBase & { type: 'power'; config: PowerConfig };
 export type TextModule = ModuleBase & { type: 'text'; config: TextConfig };
 export type DisplayModule = ModuleBase & { type: 'display'; config: DisplayConfig };
 export type KeyboardModule = ModuleBase & { type: 'keyboard'; config: KeyboardConfig };
-export type ModuleRecord = PowerModule | TextModule | DisplayModule | KeyboardModule;
+export type KeypadModule = ModuleBase & { type: 'keypad'; config: KeypadConfig };
+export type ModuleRecord = PowerModule | TextModule | DisplayModule | KeyboardModule | KeypadModule;
 
 export interface PortDef {
   id: string;

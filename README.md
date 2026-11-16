@@ -1,6 +1,6 @@
 # Nicque — modular hardware simulator
 
-A real-time 3D, hardware-first visual programming prototype. Four physical modules (Power, Text, Display, Keyboard) sit on an endless gray plane. You move them, link their connectors, switch power and edit text; a deterministic runtime decides what each block does.
+A real-time 3D, hardware-first visual programming prototype. Five physical modules (Power, Text, Display, Keyboard, Keypad) sit on an endless gray plane. You move them, link their connectors, switch power and edit text; a deterministic runtime decides what each block does.
 
 ## Commands
 
@@ -28,9 +28,11 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 
 **Initial state (deterministic):** power **on**, text `Hello, Nicque`, all three links established, camera at the default view.
 
-## Keyboard Block
+## Keyboard & Keypad Blocks
 
-A 4×2 block with an LED screen (same LED lattice, colours and typeface as the Display Block) showing a full ANSI QWERTY layout: number row, Tab, Caps Lock, Shift, Enter, Backspace and Space. It has a power input and a **keys** output that links to the new *Keyboard input* connector on the Text Block. Letters follow Shift / Caps Lock live on the screen. While a powered Keyboard is selected, your physical keyboard types through it and the matching keys light up (Escape and arrows still reach the shortcuts).
+- **Keyboard Block:** A 4×2 block with an LED screen (same LED lattice, colours and typeface as the Display Block) showing a full ANSI QWERTY layout: number row, Tab, Caps Lock, Shift, Enter, Backspace and Space.
+- **Keypad Block:** A compact square pad with an LED matrix (`0–9`, `#`, `*`, `+`, `.`, `,`, `~`) that shares the same LED pitch and pressure-sensitive key mechanics.
+- The **Text Block** provides **two south `keys` inputs** (`key-in` and `key-in-2`), so a Keyboard Block and a Keypad Block can both be linked into the same Text Block simultaneously. While a powered Keyboard or Keypad is selected, your physical keyboard types through it and the matching keys light up (Escape and arrows still reach the shortcuts).
 
 *Key pressure* (Light / Normal / Firm, in the inspector): touch and pen contacts must reach that force to register a key, keys glow brighter the harder they are pressed, and holding a key repeats it faster with more pressure. A mouse has no force sensor and always counts as a firm press.
 

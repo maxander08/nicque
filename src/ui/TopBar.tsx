@@ -104,6 +104,7 @@ function WorkspaceMenu() {
 
 const ADDABLE = [
   { type: 'keyboard', label: 'Keyboard', hint: 'Types into a Text Block' },
+  { type: 'keypad', label: 'Keypad', hint: 'Digits and symbols for a Text Block' },
   { type: 'text', label: 'Text', hint: 'Holds and sends text' },
   { type: 'display', label: 'Display', hint: 'Shows text on LEDs' },
   { type: 'power', label: 'Power', hint: 'Supplies other blocks' },

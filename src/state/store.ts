@@ -84,7 +84,7 @@ function loadSettings(): Settings {
 
 let toastSeq = 1;
 
-export const linkLabel: Record<'power' | 'text' | 'keys', string> = { power: 'Power', text: 'Text', keys: 'Keyboard' };
+export const linkLabel: Record<'power' | 'text' | 'keys', string> = { power: 'Power', text: 'Text', keys: 'Keys' };
 
 interface Store {
   workspace: Workspace;
@@ -99,7 +99,7 @@ interface Store {
   hover: HoverInfo | null;
   linkDrag: LinkDrag | null;
   draggingId: string | null;
-  /** Keys currently held on Keyboard Blocks: `${moduleId}:${keyId}` → pressure (0..1). */
+  /** Keys currently held on Keyboard and Keypad Blocks: `${moduleId}:${keyId}` → pressure (0..1). */
   keysDown: Record<string, number>;
   /** Shift / Caps Lock state of every Keyboard Block (transient, never persisted). */
   kbMods: Record<string, Mods>;
@@ -453,14 +453,14 @@ export const useStore = create<Store>((set, get) => {
     setKeyboardPressure: (id, pressure) => {
       const ws = get().workspace;
       const cur = ws.modules.find((m) => m.id === id);
-      if (!cur || cur.type !== 'keyboard' || cur.config.pressure === pressure) return;
+      if (!cur || (cur.type !== 'keyboard' && cur.type !== 'keypad') || cur.config.pressure === pressure) return;
       commit(updateModule(ws, id, (m) => ({ ...m, config: { pressure } }) as ModuleRecord), true);
     },
 
     typeEdit: (keyboardId, edit, quiet = false) => {
       const s = get();
       const kb = s.workspace.modules.find((m) => m.id === keyboardId);
-      if (!kb || kb.type !== 'keyboard') return false;
+      if (!kb || (kb.type !== 'keyboard' && kb.type !== 'keypad')) return false;
       if (!s.runtime.modules[keyboardId]?.powered) {
         if (!quiet) s.notify(`${kb.name} has no power. Its keys are inactive.`, 'warn');
         return false;
@@ -469,7 +469,7 @@ export const useStore = create<Store>((set, get) => {
         (c) => c.type === 'keys' && c.from.moduleId === keyboardId && s.runtime.connections[c.id]?.active,
       );
       if (targets.length === 0) {
-        if (!quiet) s.notify('Link the keyboard to a powered Text Block to type into it.', 'warn');
+        if (!quiet) s.notify(`Link the ${kb.type} to a powered Text Block to type into it.`, 'warn');
         return false;
       }
       for (const c of targets) {
@@ -512,7 +512,7 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const kb = s.workspace.modules.find((m) => m.id === moduleId);
       const k = keyById(keyId);
-      if (!kb || kb.type !== 'keyboard' || !k) return;
+      if (!kb || (kb.type !== 'keyboard' && kb.type !== 'keypad') || !k) return;
       s.setKeyDown(moduleId, keyId, pressure);
       if (!s.runtime.modules[moduleId]?.powered) {
         if (!repeat) s.notify(`${kb.name} has no power. Its keys are inactive.`, 'warn');

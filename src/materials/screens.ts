@@ -2,9 +2,13 @@ import {
   KB_CELL_PX,
   KB_TEX_H,
   KB_TEX_W,
+  KEYPAD_KEYS,
   KEYS,
+  KP_TEX_H,
+  KP_TEX_W,
   keyCap,
   legendOf,
+  padKeyCap,
   type Mods,
 } from '@/modules/keyboard';
 import { layoutText } from '@/modules/textLayout';
@@ -346,6 +350,69 @@ export function drawKeyboardScreen(
 
   // LED diffuser: multiply by the lattice mask, tiled from the bottom-left (the albedo lattice origin)
   ctx.globalCompositeOperation = 'multiply';
+  const tile = getKbMask();
+  for (let x = 0; x < W; x += tile.width) ctx.drawImage(tile, x, H - tile.height);
+  ctx.restore();
+}
+
+/**
+ * Draws the Keypad Block's LED screen: same indigo LED look as the Keyboard Block, but only the sixteen big keys
+ * of the pad. `down` holds the pressure (0..1) of every key that is currently pressed.
+ */
+export function drawKeypadScreen(
+  ctx: CanvasRenderingContext2D,
+  content: ScreenContent,
+  down: Readonly<Record<string, number>>,
+) {
+  const W = KP_TEX_W;
+  const H = KP_TEX_H;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  if (content.kind !== 'keys') {
+    ctx.restore();
+    return;
+  }
+
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#171d44');
+  g.addColorStop(0.55, '#1b1740');
+  g.addColorStop(1, '#2a1642');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  const live = content.linked ? 1 : 0.55;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+
+  for (const k of KEYPAD_KEYS) {
+    const cap = padKeyCap(k);
+    const pressure = down[k.id];
+    const lit = pressure !== undefined ? 0.62 + 0.38 * pressure : 0;
+
+    ctx.globalAlpha = live;
+    roundRect(ctx, cap.x, cap.y, cap.w, cap.h, 24);
+    ctx.fillStyle = lit > 0 ? `rgba(214,228,255,${lit.toFixed(3)})` : 'rgba(150,170,255,0.09)';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = lit > 0 ? 'rgba(235,242,255,0.9)' : 'rgba(170,190,255,0.34)';
+    ctx.stroke();
+
+    ctx.font = `700 118px ${SCREEN_FONT}`;
+    ctx.fillStyle = lit > 0.45 ? '#10163a' : '#f2f6ff';
+    ctx.shadowColor = lit > 0.45 ? 'transparent' : 'rgba(160,190,255,0.55)';
+    ctx.shadowBlur = lit > 0.45 ? 0 : 16;
+    // the printed glyphs of . , ~ sit on the baseline: nudge them so every legend looks centred
+    const nudge = k.base === '.' || k.base === ',' ? -26 : k.base === '~' || k.base === '*' ? 18 : 6;
+    ctx.fillText(k.base, cap.x + cap.w / 2, cap.y + cap.h / 2 + nudge);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.globalCompositeOperation = 'multiply';
+  // the keypad window is exactly one 80 × 80 lattice tile
   const tile = getKbMask();
   for (let x = 0; x < W; x += tile.width) ctx.drawImage(tile, x, H - tile.height);
   ctx.restore();

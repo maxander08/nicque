@@ -101,14 +101,17 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   }
 
   /* 5b. keyboard links ------------------------------------------------- */
-  // A key link is active when both the Keyboard Block and the Text Block it types into are powered.
+  // A key link is active when both the key source (Keyboard or Keypad Block) and the Text Block it types into are powered.
   const typingInto = new Set<string>();
   const keysSent = new Set<string>();
   for (const c of valid) {
     if (c.type !== 'keys') continue;
     const active = powered.get(c.from.moduleId) === true && powered.get(c.to.moduleId) === true;
     let reason = 'Typing into the Text Block';
-    if (powered.get(c.from.moduleId) !== true) reason = 'Keyboard Block is not powered';
+    if (powered.get(c.from.moduleId) !== true) {
+      const src = ws.modules.find((m) => m.id === c.from.moduleId);
+      reason = `${src?.type === 'keypad' ? 'Keypad' : 'Keyboard'} Block is not powered`;
+    }
     else if (powered.get(c.to.moduleId) !== true) reason = 'Text Block is not powered';
     connRuntime[c.id] = { id: c.id, valid: true, active, reason };
     if (active) {
@@ -157,19 +160,19 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         powered: isPowered,
         summary: isPowered ? 'Operational' : 'No power',
         detail: isPowered
-          ? (typing ? 'Typing from a Keyboard Block. ' : '') +
+          ? (typing ? 'Typing from a Keyboard or Keypad Block. ' : '') +
             (targets === 0
               ? 'Operational. Its output is not linked to a display.'
               : `Operational. Sending text to ${targets} ${targets === 1 ? 'display' : 'displays'}.`)
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen,
       };
-    } else if (m.type === 'keyboard') {
+    } else if (m.type === 'keyboard' || m.type === 'keypad') {
       const linked = keysSent.has(m.id);
       const hasLink = valid.some((c) => c.type === 'keys' && c.from.moduleId === m.id);
       rt = {
         id: m.id,
-        type: 'keyboard',
+        type: m.type,
         state: isPowered ? 'operational' : 'unpowered',
         powered: isPowered,
         summary: !isPowered ? 'No power' : linked ? 'Typing' : 'Not linked',
