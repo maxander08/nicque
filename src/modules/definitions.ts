@@ -5,6 +5,7 @@ import type {
   KeypadConfig,
   KeyPressure,
   ModuleRecord,
+  DataKind,
   ModuleType,
   OperatorConfig,
   OperatorType,
@@ -133,51 +134,54 @@ const power: ModuleDefinition = {
 /** Distance between the two key inputs on the south edge of a Text Block. */
 export const TEXT_KEY_PITCH = 1;
 
+const textPorts = (kind: DataKind): PortDef[] => [
+  {
+    id: 'power-in',
+    label: 'Power input',
+    type: 'power',
+    direction: 'in',
+    local: { x: 0, z: -TEXT_D / 2 },
+    normal: { x: 0, z: -1 },
+    capacity: 1,
+  },
+  {
+    id: 'data-out',
+    label: 'Text output',
+    type: 'text',
+    direction: 'out',
+    local: { x: SQUARE / 2, z: TEXT_DATA_Z },
+    normal: { x: 1, z: 0 },
+    capacity: 4,
+    kinds: [kind],
+  },
+  // Two key inputs along the south edge. The ids stay stable ('key-in' is the original single input) so saved
+  // workspaces keep their links. Either one accepts a Keyboard Block or a Keypad Block.
+  {
+    id: 'key-in',
+    label: 'Key input (south 1)',
+    type: 'keys',
+    direction: 'in',
+    local: { x: -TEXT_KEY_PITCH / 2, z: TEXT_D / 2 },
+    normal: { x: 0, z: 1 },
+    capacity: 1,
+  },
+  {
+    id: 'key-in-2',
+    label: 'Key input (south 2)',
+    type: 'keys',
+    direction: 'in',
+    local: { x: TEXT_KEY_PITCH / 2, z: TEXT_D / 2 },
+    normal: { x: 0, z: 1 },
+    capacity: 1,
+  },
+];
+
 const text: ModuleDefinition = {
   type: 'text',
   label: 'Text Block',
   width: TEXT_W,
   depth: TEXT_D,
-  ports: [
-    {
-      id: 'power-in',
-      label: 'Power input',
-      type: 'power',
-      direction: 'in',
-      local: { x: 0, z: -TEXT_D / 2 },
-      normal: { x: 0, z: -1 },
-      capacity: 1,
-    },
-    {
-      id: 'data-out',
-      label: 'Text output',
-      type: 'text',
-      direction: 'out',
-      local: { x: SQUARE / 2, z: TEXT_DATA_Z },
-      normal: { x: 1, z: 0 },
-      capacity: 4,
-    },
-    // Two key inputs along the south edge. The ids stay stable ('key-in' is the original single input) so saved
-    // workspaces keep their links. Either one accepts a Keyboard Block or a Keypad Block.
-    {
-      id: 'key-in',
-      label: 'Key input (south 1)',
-      type: 'keys',
-      direction: 'in',
-      local: { x: -TEXT_KEY_PITCH / 2, z: TEXT_D / 2 },
-      normal: { x: 0, z: 1 },
-      capacity: 1,
-    },
-    {
-      id: 'key-in-2',
-      label: 'Key input (south 2)',
-      type: 'keys',
-      direction: 'in',
-      local: { x: TEXT_KEY_PITCH / 2, z: TEXT_D / 2 },
-      normal: { x: 0, z: 1 },
-      capacity: 1,
-    },
-  ],
+  ports: textPorts('text'),
   defaultConfig: (): TextConfig => ({ value: DEFAULT_TEXT }),
   sanitizeConfig: (raw): TextConfig => ({
     value:
@@ -194,7 +198,7 @@ const integer: ModuleDefinition = {
   label: 'Integer Block',
   width: TEXT_W,
   depth: TEXT_D,
-  ports: text.ports,
+  ports: textPorts('integer'),
   defaultConfig: (): IntegerConfig => ({ value: DEFAULT_INTEGER }),
   sanitizeConfig: (raw): IntegerConfig => ({
     value: isObj(raw) && typeof raw.value === 'string' ? sanitizeInteger(raw.value) : DEFAULT_INTEGER,
@@ -213,19 +217,44 @@ export const OPERATOR_TYPES = Object.keys(OPERATORS) as OperatorType[];
 /** True for the Adder, Subtractor, Multiplier and Divisor Blocks (the blocks with the yellow operator box). */
 export const isOperatorType = (t: unknown): t is OperatorType => typeof t === 'string' && t in OPERATORS;
 
+/** Operators that can also take (and give back) text: the Adder joins text, the Multiplier repeats it. */
+export const TEXT_OPERATORS: OperatorType[] = ['adder', 'multiplier'];
+/** Data kinds an operator's nodes work with. Only the Adder and Multiplier also work with text. */
+export const operatorKinds = (type: OperatorType): DataKind[] =>
+  TEXT_OPERATORS.includes(type) ? ['integer', 'text'] : ['integer'];
+
 /**
- * An operator block has exactly the footprint, buttons and connectors of a Text Block (it looks the same); the
- * only visual difference is the yellow operator box next to its power LED.
+ * An operator block has the footprint, header, buttons and power connector of a Text Block (it looks the same);
+ * the visual difference is the yellow operator box next to its power LED, which now also carries the operator's
+ * symbol. It has no key inputs (nothing to type into): its nodes are a power input, an operand input on the west
+ * edge (two operands) and a result output on the east edge, aligned with the Text and Display Block data nodes.
  */
-const operatorDef = (type: OperatorType): ModuleDefinition => ({
-  type,
-  label: OPERATORS[type].label,
-  width: TEXT_W,
-  depth: TEXT_D,
-  ports: text.ports,
-  defaultConfig: (): OperatorConfig => ({}),
-  sanitizeConfig: (): OperatorConfig => ({}),
-});
+const operatorDef = (type: OperatorType): ModuleDefinition => {
+  const kinds = operatorKinds(type);
+  const base = textPorts('integer');
+  return {
+    type,
+    label: OPERATORS[type].label,
+    width: TEXT_W,
+    depth: TEXT_D,
+    ports: [
+      base[0],
+      {
+        id: 'data-in',
+        label: 'Operand input',
+        type: 'text',
+        direction: 'in',
+        local: { x: -SQUARE / 2, z: TEXT_DATA_Z },
+        normal: { x: -1, z: 0 },
+        capacity: 2,
+        kinds,
+      },
+      { ...base[1], label: 'Result output', kinds },
+    ],
+    defaultConfig: (): OperatorConfig => ({}),
+    sanitizeConfig: (): OperatorConfig => ({}),
+  };
+};
 
 const adder = operatorDef('adder');
 const subtractor = operatorDef('subtractor');
@@ -255,6 +284,7 @@ const display: ModuleDefinition = {
       local: { x: -SQUARE / 2, z: 0 },
       normal: { x: -1, z: 0 },
       capacity: 1,
+      kinds: ['text', 'integer'],
     },
   ],
   defaultConfig: (): DisplayConfig => ({ align: 'center' }),

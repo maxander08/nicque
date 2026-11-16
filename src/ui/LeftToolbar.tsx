@@ -4,7 +4,7 @@ import { LIGHTING_IDS, LIGHTING_PRESETS } from '@/rendering/lighting';
 import { useStore } from '@/state/store';
 import type { ModuleType } from '@/types';
 import { cn } from '@/utils/cn';
-import { panelClass } from './primitives';
+import { ScrollArea, panelClass } from './primitives';
 
 /* ------------------------------------------------------------------ */
 /* Block library data                                                  */
@@ -305,8 +305,9 @@ export function LeftToolbar() {
             {panel === 'library' ? (
               <section
                 aria-label="Block library"
-                className={cn(panelClass, 'nq-flyout max-h-[calc(100dvh-7rem)] w-[250px] overflow-y-auto p-2')}
+                className={cn(panelClass, 'nq-flyout flex max-h-[calc(100dvh-7rem)] w-[250px] flex-col overflow-hidden')}
               >
+                <ScrollArea className="flex-1" contentClassName="p-2">
                 <h2 className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
                   Blocks
                 </h2>
@@ -338,6 +339,7 @@ export function LeftToolbar() {
                 <p className="px-2 pb-1 pt-2 text-[11px] leading-snug text-neutral-500">
                   Drag a block onto the workspace to place it.
                 </p>
+                </ScrollArea>
               </section>
             ) : (
               <section aria-label="Lighting scenes" className={cn(panelClass, 'nq-flyout w-[250px] p-2')}>

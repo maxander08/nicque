@@ -122,39 +122,13 @@ export function drawDisplayScreen(
     drawLines(ctx, layout.lines, layout.fontSize, 1.16, box, align, 700);
     ctx.shadowBlur = 0;
   } else {
-    const messages: Record<string, [string, string]> = {
-      'no-source': ['No data source', 'Link a Text Block to this display'],
-      'source-off': ['Source unavailable', 'The linked Text Block is not operating'],
-      empty: ['Empty text', 'The Text Block sends no characters'],
-      cleared: ['Display cleared', 'The source block still holds its data'],
-    };
-    const [title, sub] = messages[content.kind];
-    ctx.fillStyle = '#dfe6f7';
+    // Idle: powered, but there is nothing to show (no source, source unavailable, empty or cleared).
+    // Just a faint word on the backlit pad.
+    ctx.fillStyle = 'rgba(223, 230, 247, 0.26)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `700 96px ${SCREEN_FONT}`;
-    ctx.fillText(title, W / 2, cy + 10);
-    ctx.fillStyle = '#9aa6c8';
-    ctx.font = `400 54px ${SCREEN_FONT}`;
-    const sl = layoutText(sub, {
-      width: box.w,
-      height: 170,
-      maxFont: 54,
-      minFont: 36,
-      lineHeight: 1.2,
-      measure: measurer(400),
-    });
-    drawLines(ctx, sl.lines, sl.fontSize, 1.2, { x: box.x, y: cy + 80, w: box.w, h: 170 }, 'center', 400);
-    // simple "unlinked" glyph
-    const gy = cy - 190;
-    ctx.strokeStyle = '#9aa6c8';
-    ctx.lineWidth = 14;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(W / 2 - 48, gy, 40, Math.PI * 0.75, Math.PI * 2.25);
-    ctx.moveTo(W / 2 + 48, gy);
-    ctx.arc(W / 2 + 48, gy, 40, Math.PI * 1.75, Math.PI * 1.25);
-    ctx.stroke();
+    ctx.font = `600 120px ${SCREEN_FONT}`;
+    ctx.fillText('Idle', W / 2, cy);
   }
 
   // LED diffuser: multiply by the lattice mask, anchored at the bottom-left (the albedo lattice origin)

@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isInteger, isOperatorType } from '@/modules/definitions';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
-import { IconButton, Segmented, StateMark, Switch, panelClass, stateLabel } from './primitives';
+import { OPERATORS, TEXT_OPERATORS } from '@/modules/definitions';
+import { describeNode } from '@/connections/compat';
+import { IconButton, ScrollArea, Segmented, StateMark, Stepper, Switch, TextArea, panelClass, stateLabel } from './primitives';
 import { cn } from '@/utils/cn';
 
 /** Contextual configuration for the selected block. */
@@ -54,7 +56,7 @@ export function Inspector() {
         </IconButton>
       </header>
 
-      <div className="space-y-4 overflow-y-auto px-4 py-3">
+      <ScrollArea className="flex-1" contentClassName="space-y-4 px-4 py-3">
         <p className="text-[13px] leading-snug text-neutral-300">{rt.detail}</p>
 
         {/* every block has its own power switch, mirroring the button on its cover */}
@@ -82,16 +84,15 @@ export function Inspector() {
                 {Array.from(module.config.value).length} / {MAX_TEXT_LENGTH}
               </span>
             </div>
-            <textarea
+            <TextArea
               id="text-value"
               ref={area}
-              rows={5}
               maxLength={MAX_TEXT_LENGTH}
               value={module.config.value}
               onChange={(e) => setText(module.id, e.target.value)}
               placeholder="Type the text to send to a display"
               spellCheck={false}
-              className="w-full resize-y rounded-lg border border-white/12 bg-black/40 px-3 py-2 text-[14px] leading-snug text-neutral-50 outline-none placeholder:text-neutral-500 focus:border-white/50"
+              className="rounded-lg border border-white/12 bg-black/40 px-3 py-2 text-[14px] leading-snug text-neutral-50 outline-none placeholder:text-neutral-500 focus:border-white/50"
             />
             <p className="mt-1.5 text-xs leading-snug text-neutral-400">
               The Text Block has no screen of its own. Link its output to a Display Block to see the text.
@@ -107,11 +108,20 @@ export function Inspector() {
         {isOperatorType(module.type) && (
           <div>
             <div className="mb-1.5 flex items-center gap-2">
-              <span className="inline-block h-3 w-3 rounded-[3px] bg-[#ffd21a]" aria-hidden />
-              <span className="text-[13px] font-medium">Operator block</span>
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-[3px] bg-[#ffd21a] text-[12px] font-bold leading-none text-neutral-900"
+                aria-hidden
+              >
+                {OPERATORS[module.type].symbol}
+              </span>
+              <span className="text-[13px] font-medium">{OPERATORS[module.type].badge} operator</span>
             </div>
             <p className="text-xs leading-snug text-neutral-400">
-              The yellow box next to the power LED marks an operator block. It looks and connects like a Text Block.
+              The yellow box and symbol next to the power LED mark this as the {OPERATORS[module.type].badge} operator.
+              {TEXT_OPERATORS.includes(module.type)
+                ? ' It works with Integer Blocks and, in addition, with Text Blocks.'
+                : ' It works with Integer Blocks only.'}{' '}
+              It holds no value of its own, so there is nothing to edit.
             </p>
           </div>
         )}
@@ -124,20 +134,29 @@ export function Inspector() {
               </label>
               <span className="text-xs text-neutral-400">whole numbers only</span>
             </div>
-            <input
-              id="integer-value"
-              ref={intInput}
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              maxLength={MAX_INTEGER_DIGITS + 1}
-              value={module.config.value}
-              onChange={(e) => setText(module.id, e.target.value)}
-              placeholder="e.g. 42 or -7"
-              spellCheck={false}
-              aria-invalid={module.config.value !== '' && !isInteger(module.config.value)}
-              className="w-full rounded-lg border border-white/12 bg-black/40 px-3 py-2 font-mono text-[15px] text-neutral-50 outline-none placeholder:text-neutral-500 focus:border-white/50"
-            />
+            <Stepper
+              label="integer"
+              onStep={(dir) => {
+                // BigInt keeps all 18 digits exact while stepping
+                const cur = isInteger(module.config.value) ? BigInt(module.config.value) : 0n;
+                setText(module.id, (cur + BigInt(dir)).toString());
+              }}
+            >
+              <input
+                id="integer-value"
+                ref={intInput}
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={MAX_INTEGER_DIGITS + 1}
+                value={module.config.value}
+                onChange={(e) => setText(module.id, e.target.value)}
+                placeholder="e.g. 42 or -7"
+                spellCheck={false}
+                aria-invalid={module.config.value !== '' && !isInteger(module.config.value)}
+                className="w-full bg-transparent px-3 py-2 text-center font-mono text-[15px] text-neutral-50 outline-none placeholder:text-neutral-500"
+              />
+            </Stepper>
             <p className="mt-1.5 text-xs leading-snug text-neutral-400">
               Only digits and a leading minus sign are accepted; anything else is ignored. Like the Text Block it has
               no screen of its own: link its output to a Display Block to see the number.
@@ -222,10 +241,11 @@ export function Inspector() {
                     <span className="text-[13px]">
                       {p.label}
                       <span className="ml-1.5 text-xs text-neutral-400">
-                        {p.type === 'power' ? 'power' : p.type === 'keys' ? 'keys' : 'text'} · {p.direction === 'out' ? 'output' : 'input'}
+                        {p.type === 'power' ? 'power' : p.type === 'keys' ? 'keys' : 'data'} · {p.direction === 'out' ? 'output' : 'input'}
                       </span>
                     </span>
                   </div>
+                  <p className="mt-0.5 text-xs text-neutral-500">This node {describeNode(p)}</p>
                   {links.length === 0 ? (
                     <p className="mt-0.5 text-xs text-neutral-400">Not linked</p>
                   ) : (
@@ -256,7 +276,7 @@ export function Inspector() {
             })}
           </ul>
         </div>
-      </div>
+      </ScrollArea>
 
       <footer className="flex items-center justify-between border-t border-white/10 px-3 py-2">
         <IconButton onClick={() => rotateModule(module.id)} aria-label="Rotate block 90 degrees">

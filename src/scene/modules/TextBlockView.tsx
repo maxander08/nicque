@@ -5,6 +5,7 @@ import { BUTTON_CLEARANCE, ButtonCap, buttonHole } from '../parts/ButtonCap';
 import { BlockBadge } from '../parts/Decals';
 import { HeaderControls, headerHoles, useBlockOn, withPower } from '../parts/HeaderControls';
 import { Housing } from '../parts/Housing';
+import type { OperatorType } from '@/types';
 import { OperatorMark } from '../parts/OperatorMark';
 import { PowerLed } from '../parts/PowerLed';
 
@@ -23,6 +24,12 @@ const BUTTONS = [
   { x: BTN_PITCH, action: 'undo', icon: 'undo', label: 'Restore sample text button' },
 ] as const;
 
+/** Operator blocks have no pencil (edit) button: the two that remain sit centred in the content area. */
+const OPERATOR_BUTTONS = [
+  { ...BUTTONS[1], x: -BTN_PITCH / 2 },
+  { ...BUTTONS[2], x: BTN_PITCH / 2 },
+] as const;
+
 const CONTROLS = withPower();
 
 /**
@@ -34,26 +41,28 @@ const CONTROLS = withPower();
 export function TextBlockView({
   moduleId,
   badge = 'Text',
-  operator = false,
+  operator,
 }: {
   moduleId: string;
   badge?: string;
-  operator?: boolean;
+  /** Set on operator blocks: which operator this is (yellow box + symbol, and no edit button). */
+  operator?: OperatorType;
 }) {
   const powered = useBlockOn(moduleId);
+  const buttons = operator ? OPERATOR_BUTTONS : BUTTONS;
 
   const holes = useMemo(
     () => [
       ...headerHoles(def.width, def.depth, CONTROLS),
-      ...BUTTONS.map((b) => buttonHole(b.x, BTN_Z, BTN_R)),
+      ...buttons.map((b) => buttonHole(b.x, BTN_Z, BTN_R)),
     ],
-    [],
+    [buttons],
   );
 
   return (
     <group>
       <Housing width={def.width} depth={def.depth} holes={holes} />
-      {BUTTONS.map((b) => (
+      {buttons.map((b) => (
         <ButtonCap
           key={b.action}
           moduleId={moduleId}
@@ -67,7 +76,7 @@ export function TextBlockView({
       ))}
       <HeaderControls moduleId={moduleId} width={def.width} depth={def.depth} controls={CONTROLS} />
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
-      {operator && <OperatorMark width={def.width} depth={def.depth} />}
+      {operator && <OperatorMark width={def.width} depth={def.depth} symbol={operator} />}
       <BlockBadge name={badge} x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
     </group>
   );

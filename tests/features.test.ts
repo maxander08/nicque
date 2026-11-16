@@ -31,7 +31,9 @@ describe('Integer block', () => {
     const t = MODULE_DEFINITIONS.text;
     const i = MODULE_DEFINITIONS.integer;
     expect([i.width, i.depth]).toEqual([t.width, t.depth]);
-    expect(i.ports).toEqual(t.ports);
+    // same connectors in the same places; only the kind of data the output sends differs (integer vs text)
+    const strip = (ports: typeof t.ports) => ports.map(({ kinds: _k, ...rest }) => rest);
+    expect(strip(i.ports)).toEqual(strip(t.ports));
   });
 });
 

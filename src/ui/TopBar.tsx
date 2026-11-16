@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '@/state/store';
 import { cn } from '@/utils/cn';
-import { IconButton, Segmented, panelClass } from './primitives';
+import { ConfirmDialog, IconButton, Segmented, panelClass } from './primitives';
 
 const Icon = ({ d }: { d: string }) => (
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
@@ -11,6 +11,7 @@ const Icon = ({ d }: { d: string }) => (
 
 function WorkspaceMenu() {
   const [open, setOpen] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const { saveToBrowser, loadFromBrowser, exportJson, importJson, resetWorkspace, notify } = useStore.getState();
@@ -74,13 +75,22 @@ function WorkspaceMenu() {
           <div className="my-1 h-px bg-white/10" />
           {item(
             'Reset workspace',
-            () => {
-              if (window.confirm('Reset the workspace to the default three-block arrangement?')) resetWorkspace();
-            },
+            () => setConfirmReset(true),
             'M3 8a5 5 0 1 0 1.8-3.8M3 2.5v3h3',
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmReset}
+        title="Reset workspace?"
+        message="This replaces everything on the workspace with the default three-block arrangement. Unsaved changes are lost."
+        confirmLabel="Reset"
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={() => {
+          setConfirmReset(false);
+          resetWorkspace();
+        }}
+      />
       <input
         ref={file}
         type="file"

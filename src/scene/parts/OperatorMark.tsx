@@ -1,6 +1,8 @@
 import { memo } from 'react';
-import { MeshBasicMaterial, Shape, ShapeGeometry } from 'three';
+import { BufferGeometry, MeshBasicMaterial, Shape, ShapeGeometry } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
+import type { OperatorType } from '@/types';
 import { LED_RADIUS, powerLedPosition } from '@/modules/layout';
 import { useDisposable } from '../hooks';
 
@@ -10,6 +12,19 @@ export const OPERATOR_BOX_SIZE = 0.1;
 export const OPERATOR_BOX_GAP = 0.07;
 const CORNER = 0.018;
 export const OPERATOR_YELLOW = '#ffd21a';
+
+/** Extent of the operator symbol printed next to the box: a touch smaller than the box so the two read as a pair. */
+export const OPERATOR_SYMBOL_SIZE = OPERATOR_BOX_SIZE * 0.86;
+/** Stroke weight of the symbol, in proportion to its size. */
+export const OPERATOR_SYMBOL_STROKE = OPERATOR_SYMBOL_SIZE * 0.2;
+/** Air gap between the yellow box and its symbol (a little less than the LED-to-box gap, so they stay grouped). */
+export const OPERATOR_SYMBOL_GAP = OPERATOR_BOX_GAP * 0.6;
+
+/** Local (x, z) of the operator symbol: directly to the right of the yellow box, on the same centre line. */
+export const operatorSymbolPosition = (width: number, depth: number, header?: number) => {
+  const box = operatorMarkPosition(width, depth, header);
+  return { x: box.x + OPERATOR_BOX_SIZE / 2 + OPERATOR_SYMBOL_GAP + OPERATOR_SYMBOL_SIZE / 2, z: box.z };
+};
 
 /** Local (x, z) of the operator box: directly to the right of the power LED, on the same centre line. */
 export const operatorMarkPosition = (width: number, depth: number, header?: number) => {
@@ -32,18 +47,67 @@ function roundedSquare(size: number, r: number) {
   return s;
 }
 
+/** A flat bar (in the XY plane, centred on the origin), optionally turned by `angle`. */
+function bar(length: number, thickness: number, angle = 0, ox = 0, oy = 0) {
+  const g = new ShapeGeometry(
+    new Shape()
+      .moveTo(-length / 2, -thickness / 2)
+      .lineTo(length / 2, -thickness / 2)
+      .lineTo(length / 2, thickness / 2)
+      .lineTo(-length / 2, thickness / 2)
+      .closePath(),
+  );
+  g.rotateZ(angle);
+  g.translate(ox, oy, 0);
+  return g;
+}
+
+function dot(radius: number, ox: number, oy: number) {
+  const g = new ShapeGeometry(new Shape().absarc(0, 0, radius, 0, Math.PI * 2, false), 20);
+  g.translate(ox, oy, 0);
+  return g;
+}
+
+/** The +, −, × or ÷ glyph as one flat geometry lying on the cover (its size follows the yellow box). */
+export function operatorSymbolGeometry(type: OperatorType): BufferGeometry {
+  const G = OPERATOR_SYMBOL_SIZE;
+  const t = OPERATOR_SYMBOL_STROKE;
+  let parts: BufferGeometry[];
+  switch (type) {
+    case 'adder':
+      parts = [bar(G, t), bar(G, t, Math.PI / 2)];
+      break;
+    case 'subtractor':
+      parts = [bar(G, t)];
+      break;
+    case 'multiplier':
+      parts = [bar(G * 1.14, t, Math.PI / 4), bar(G * 1.14, t, -Math.PI / 4)];
+      break;
+    case 'divisor':
+    default:
+      parts = [bar(G, t), dot(t * 0.78, 0, G * 0.34), dot(t * 0.78, 0, -G * 0.34)];
+      break;
+  }
+  const merged = mergeGeometries(parts, false) ?? parts[0];
+  parts.forEach((p) => p !== merged && p.dispose());
+  return merged.rotateX(-Math.PI / 2);
+}
+
 interface Props {
   width: number;
   depth: number;
   header?: number;
+  /** Which operator this is: its symbol is printed next to the box. */
+  symbol?: OperatorType;
 }
 
 /**
  * The yellow box that marks a block as an operator block. It lies flush on the top cover, to the right of the
  * power LED (the left-hand side of the header), and is the only thing that tells an operator from a Text Block.
  */
-export const OperatorMark = memo(function OperatorMark({ width, depth, header }: Props) {
+export const OperatorMark = memo(function OperatorMark({ width, depth, header, symbol }: Props) {
   const { x, z } = operatorMarkPosition(width, depth, header);
+  const sym = operatorSymbolPosition(width, depth, header);
   const geo = useDisposable(
     () => new ShapeGeometry(roundedSquare(OPERATOR_BOX_SIZE, CORNER), 6).rotateX(-Math.PI / 2),
     [],
@@ -59,14 +123,27 @@ export const OperatorMark = memo(function OperatorMark({ width, depth, header }:
       }),
     [],
   );
+  const symGeo = useDisposable(() => (symbol ? operatorSymbolGeometry(symbol) : new BufferGeometry()), [symbol]);
   return (
-    <mesh
-      geometry={geo}
-      material={mat}
-      position={[x, BLOCK_HEIGHT + 0.0012, z]}
-      renderOrder={2}
-      raycast={() => null}
-      name="operator-box"
-    />
+    <>
+      <mesh
+        geometry={geo}
+        material={mat}
+        position={[x, BLOCK_HEIGHT + 0.0012, z]}
+        renderOrder={2}
+        raycast={() => null}
+        name="operator-box"
+      />
+      {symbol && (
+        <mesh
+          geometry={symGeo}
+          material={mat}
+          position={[sym.x, BLOCK_HEIGHT + 0.0012, sym.z]}
+          renderOrder={2}
+          raycast={() => null}
+          name="operator-symbol"
+        />
+      )}
+    </>
   );
 });

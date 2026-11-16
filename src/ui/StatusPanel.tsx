@@ -3,7 +3,7 @@ import { missingLinks } from '@/connections/suggest';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { linkLabel, useStore } from '@/state/store';
 import { cn } from '@/utils/cn';
-import { StateMark, Switch, panelClass } from './primitives';
+import { ScrollArea, StateMark, Switch, panelClass } from './primitives';
 
 /** Compact runtime / connection status with the master power control. */
 export function StatusPanel() {
@@ -98,7 +98,7 @@ export function StatusPanel() {
             </svg>
           </button>
         </header>
-        <div className="space-y-3 overflow-y-auto px-4 pb-4 pt-3">
+        <ScrollArea className="flex-1" contentClassName="space-y-3 px-4 pb-4 pt-3">
           {powers.map((p) => (
             <div key={p.id} className="flex items-center justify-between">
               <span className="text-[13px] font-medium">{p.name} <span className="text-xs font-normal text-neutral-400">supply</span></span>
@@ -184,7 +184,7 @@ export function StatusPanel() {
               )}
             </ul>
           </div>
-        </div>
+        </ScrollArea>
       </section>
     </>
   );

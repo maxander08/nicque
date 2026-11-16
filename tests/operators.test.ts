@@ -15,13 +15,15 @@ describe('operator blocks', () => {
     expect(isOperatorType('text')).toBe(false);
   });
 
-  it('share the Text Block footprint and connectors', () => {
+  it('share the Text Block footprint, and have power, operand and result nodes but no key inputs', () => {
     const text = MODULE_DEFINITIONS.text;
     for (const t of OPERATOR_TYPES) {
       const d = MODULE_DEFINITIONS[t];
       expect(d.width).toBe(text.width);
       expect(d.depth).toBe(text.depth);
-      expect(d.ports).toEqual(text.ports);
+      expect(d.ports.map((p) => p.id)).toEqual(['power-in', 'data-in', 'data-out']);
+      // the result node sits exactly where a Text Block's output does
+      expect(d.ports.find((p) => p.id === 'data-out')!.local).toEqual(text.ports.find((p) => p.id === 'data-out')!.local);
     }
   });
 

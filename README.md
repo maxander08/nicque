@@ -38,9 +38,13 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 
 Every block carries a small, subtle "nicque" mark with the block's name printed below it.
 
-## Operator Blocks
+## Operator Blocks & Node Compatibility
 
-Adder, Subtractor, Multiplier and Divisor Blocks look exactly like the Text Block (same housing, buttons and connectors). The only difference is a small **yellow box** next to the power LED, on the left of the header, which marks a block as an operator. They are in the block library, the Add-block menu, saved workspaces and the inspector; they are powered like any other block.
+Adder (`+`), Subtractor (`−`), Multiplier (`×`) and Divisor (`÷`) Blocks share the Text Block's housing and power/output geometry, marked by a **yellow operator box + symbol** next to the top-left power LED (with no edit/pencil button or south key inputs, since operators hold no editable text of their own). Each operator accepts up to **two operands** on its west input and outputs on its east connector:
+- **Subtractor & Divisor:** accept and output integers only.
+- **Adder & Multiplier:** accept integers and text (an Adder or Multiplier carrying text outputs text; a Multiplier allows `text × integer` but rejects `text × text`).
+- Full graph compatibility (`src/connections/compat.ts`) prevents cycles and rejects links that would turn an operator's downstream output into a type its existing consumers cannot accept.
+- Powered Display Blocks without active text content show a subtle `"Idle"` state.
 
 ## Layout and topology
 

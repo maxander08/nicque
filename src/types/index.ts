@@ -9,6 +9,8 @@ export type OperatorType = 'adder' | 'subtractor' | 'multiplier' | 'divisor';
 export type ModuleType = 'power' | 'text' | 'integer' | OperatorType | 'display' | 'keyboard' | 'keypad';
 export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
+/** What a text-type (data) connector carries: free text or a whole number. */
+export type DataKind = 'text' | 'integer';
 
 export interface Vec2 {
   x: number;
@@ -89,6 +91,11 @@ export interface PortDef {
   normal: Vec2;
   /** Maximum number of links this port may hold. */
   capacity: number;
+  /**
+   * Data connectors only: the kinds of data this node can send (output) or accept (input). Every block declares
+   * this for each of its nodes, so a link can be checked for compatibility from both ends.
+   */
+  kinds?: DataKind[];
 }
 
 export interface PortRef {

@@ -1,4 +1,5 @@
 import { getPortDef } from '@/modules/definitions';
+import { dataLinkProblem } from './compat';
 import type {
   ConnectionRecord,
   ModuleRecord,
@@ -60,6 +61,12 @@ export function validateConnection(
   const id = connectionId(from, to);
   if (ws.connections.some((c) => c.id === id)) {
     return fail('duplicate', 'These connectors are already linked.');
+  }
+
+  // data nodes must also agree on what they carry (integers / text); this is checked from both ends
+  if (fromP.type === 'text') {
+    const problem = dataLinkProblem(ws, { id, type: 'text', from, to });
+    if (problem) return fail('incompatible', problem);
   }
 
   const toUse = ws.connections.filter((c) => refEq(c.to, to)).length;
