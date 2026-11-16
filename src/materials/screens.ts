@@ -1,3 +1,12 @@
+import {
+  KB_CELL_PX,
+  KB_TEX_H,
+  KB_TEX_W,
+  KEYS,
+  keyCap,
+  legendOf,
+  type Mods,
+} from '@/modules/keyboard';
 import { layoutText } from '@/modules/textLayout';
 import type { ScreenContent } from '@/types';
 import { makeDotMaskCanvas } from './textures';
@@ -152,10 +161,12 @@ export function drawTextScreen(ctx: CanvasRenderingContext2D, content: ScreenCon
   ctx.fillRect(0, 0, W, H);
 
   const pad = 44;
-  const box = { x: pad, y: 40, w: W - pad * 2, h: H - 40 - 70 };
+  const box = { x: pad, y: 40, w: W - pad * 2, h: H - 80 };
   ctx.fillStyle = '#d9fff6';
   if (content.kind === 'text') {
-    const layout = layoutText(content.text, {
+    // a bar after the last character shows that a Keyboard Block is typing into this block
+    const shown = content.typing ? `${content.text}|` : content.text;
+    const layout = layoutText(shown, {
       width: box.w,
       height: box.h,
       maxFont: 110,
@@ -167,12 +178,6 @@ export function drawTextScreen(ctx: CanvasRenderingContext2D, content: ScreenCon
     ctx.shadowBlur = 10;
     drawLines(ctx, layout.lines, layout.fontSize, 1.18, box, 'left', 700);
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#6fa59c';
-    ctx.font = `400 34px ${SCREEN_FONT}`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'alphabetic';
-    const n = Array.from(content.text).length;
-    ctx.fillText(`${n} ${n === 1 ? 'character' : 'characters'}`, W - pad, H - 24);
   } else {
     ctx.fillStyle = '#9fd8cc';
     ctx.font = `700 54px ${SCREEN_FONT}`;
@@ -181,14 +186,14 @@ export function drawTextScreen(ctx: CanvasRenderingContext2D, content: ScreenCon
     ctx.fillText('Empty', pad, H / 2 - 24);
     ctx.fillStyle = '#6fa59c';
     ctx.font = `400 36px ${SCREEN_FONT}`;
-    ctx.fillText('Press Edit to enter text', pad, H / 2 + 34);
+    ctx.fillText(content.kind === 'empty' && content.typing ? 'Type on the keyboard' : 'Press Edit to enter text', pad, H / 2 + 34);
   }
   ctx.restore();
 }
 
 /* ---- small icon / label canvases ---------------------------------------------------------- */
 
-export type IconName = 'power' | 'edit' | 'clear' | 'sample';
+export type IconName = 'power' | 'edit' | 'clear' | 'undo';
 
 export function drawIcon(ctx: CanvasRenderingContext2D, name: IconName, size: number, color: string) {
   const c = size / 2;
@@ -221,12 +226,114 @@ export function drawIcon(ctx: CanvasRenderingContext2D, name: IconName, size: nu
       ctx.moveTo(c + size * 0.22, c - size * 0.22);
       ctx.lineTo(c - size * 0.22, c + size * 0.22);
       break;
-    case 'sample':
-      ctx.arc(c, c, size * 0.24, Math.PI * 0.2, Math.PI * 1.65);
-      ctx.moveTo(c + size * 0.05, c - size * 0.3);
-      ctx.lineTo(c - size * 0.04, c - size * 0.24);
-      ctx.lineTo(c + size * 0.05, c - size * 0.17);
+    case 'undo': {
+      // classic undo arrow: head on the left, shaft turning down through a rounded bowl on the right
+      const u = size;
+      ctx.moveTo(c - u * 0.1, c - u * 0.3);
+      ctx.lineTo(c - u * 0.28, c - u * 0.14);
+      ctx.lineTo(c - u * 0.1, c + u * 0.02);
+      ctx.moveTo(c - u * 0.27, c - u * 0.14);
+      ctx.lineTo(c + u * 0.06, c - u * 0.14);
+      ctx.arc(c + u * 0.06, c + u * 0.07, u * 0.21, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(c - u * 0.2, c + u * 0.28);
       break;
+    }
   }
   ctx.stroke();
+}
+
+/* ---- keyboard ----------------------------------------------------------------------------- */
+
+let kbMask: HTMLCanvasElement | null = null;
+const getKbMask = () => (kbMask ??= makeDotMaskCanvas(KB_CELL_PX * DISPLAY_CELLS, DISPLAY_CELLS, 0.24));
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/**
+ * Draws the Keyboard Block's LED screen: the same indigo LED look and typeface as the Display Block, with one
+ * lit keycap per key. `down` holds the pressure (0..1) of every key that is currently pressed.
+ */
+export function drawKeyboardScreen(
+  ctx: CanvasRenderingContext2D,
+  content: ScreenContent,
+  mods: Mods,
+  down: Readonly<Record<string, number>>,
+) {
+  const W = KB_TEX_W;
+  const H = KB_TEX_H;
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  if (content.kind !== 'keys') {
+    ctx.restore();
+    return;
+  }
+
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#171d44');
+  g.addColorStop(0.55, '#1b1740');
+  g.addColorStop(1, '#2a1642');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // keycaps dim while the keyboard is not linked to a Text Block
+  const live = content.linked ? 1 : 0.55;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+
+  for (const k of KEYS) {
+    const cap = keyCap(k);
+    const pressure = down[k.id];
+    const pressed = pressure !== undefined;
+    const latched = (k.kind === 'caps' && mods.caps) || (k.kind === 'shift' && mods.shift);
+    const lit = pressed ? 0.62 + 0.38 * pressure : latched ? 0.5 : 0;
+
+    ctx.globalAlpha = live;
+    roundRect(ctx, cap.x, cap.y, cap.w, cap.h, 16);
+    ctx.fillStyle = lit > 0 ? `rgba(214,228,255,${lit.toFixed(3)})` : 'rgba(150,170,255,0.09)';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = lit > 0 ? 'rgba(235,242,255,0.9)' : 'rgba(170,190,255,0.34)';
+    ctx.stroke();
+
+    const legend = legendOf(k, mods);
+    if (legend) {
+      const small = k.kind !== 'char';
+      ctx.font = `700 ${small ? 36 : 60}px ${SCREEN_FONT}`;
+      ctx.fillStyle = lit > 0.45 ? '#10163a' : '#f2f6ff';
+      ctx.shadowColor = lit > 0.45 ? 'transparent' : 'rgba(160,190,255,0.55)';
+      ctx.shadowBlur = lit > 0.45 ? 0 : 12;
+      ctx.fillText(legend, cap.x + cap.w / 2, cap.y + cap.h / 2 + 3);
+      ctx.shadowBlur = 0;
+    } else if (k.kind === 'space') {
+      // spacebar: a short bar, so that it reads as a key even without a legend
+      ctx.fillStyle = lit > 0.45 ? '#10163a' : 'rgba(242,246,255,0.55)';
+      roundRect(ctx, cap.x + cap.w / 2 - 90, cap.y + cap.h / 2 - 3, 180, 6, 3);
+      ctx.fill();
+    }
+    // Caps Lock indicator
+    if (k.kind === 'caps') {
+      ctx.fillStyle = mods.caps ? '#10163a' : 'rgba(170,190,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(cap.x + 22, cap.y + 22, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // LED diffuser: multiply by the lattice mask, tiled from the bottom-left (the albedo lattice origin)
+  ctx.globalCompositeOperation = 'multiply';
+  const tile = getKbMask();
+  for (let x = 0; x < W; x += tile.width) ctx.drawImage(tile, x, H - tile.height);
+  ctx.restore();
 }

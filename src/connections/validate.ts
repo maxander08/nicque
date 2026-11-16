@@ -50,7 +50,7 @@ export function validateConnection(
   const to: PortRef = { moduleId: toM.id, portId: toP.id };
 
   if (fromP.type !== toP.type) {
-    const what = (t: string) => (t === 'power' ? 'power' : 'text');
+    const what = (t: string) => (t === 'power' ? 'power' : t === 'keys' ? 'keystrokes' : 'text');
     return fail(
       'type-mismatch',
       `${fromM.name} supplies ${what(fromP.type)}, but the ${toP.label.toLowerCase()} of ${toM.name} expects ${what(toP.type)}.`,

@@ -1,5 +1,7 @@
 import type {
   DisplayConfig,
+  KeyboardConfig,
+  KeyPressure,
   ModuleRecord,
   ModuleType,
   PortDef,
@@ -27,6 +29,7 @@ export interface ModuleDefinition {
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
+export const KEYBOARD_W = SQUARE * 2 + DOCK_GAP;
 const POWER_W = SQUARE * 2 + DOCK_GAP;
 const POWER_D = 1;
 
@@ -52,6 +55,15 @@ const power: ModuleDefinition = {
       direction: 'out',
       local: { x: (SQUARE + DOCK_GAP) / 2, z: POWER_D / 2 },
       normal: { x: 0, z: 1 },
+      capacity: 1,
+    },
+    {
+      id: 'power-out-c',
+      label: 'Power output C',
+      type: 'power',
+      direction: 'out',
+      local: { x: POWER_W / 2, z: 0 },
+      normal: { x: 1, z: 0 },
       capacity: 1,
     },
   ],
@@ -84,6 +96,15 @@ const text: ModuleDefinition = {
       local: { x: SQUARE / 2, z: 0 },
       normal: { x: 1, z: 0 },
       capacity: 4,
+    },
+    {
+      id: 'key-in',
+      label: 'Keyboard input',
+      type: 'keys',
+      direction: 'in',
+      local: { x: 0, z: SQUARE / 2 },
+      normal: { x: 0, z: 1 },
+      capacity: 1,
     },
   ],
   defaultConfig: (): TextConfig => ({ value: DEFAULT_TEXT }),
@@ -124,7 +145,42 @@ const display: ModuleDefinition = {
   }),
 };
 
-export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, display };
+export const KEY_PRESSURES: KeyPressure[] = ['light', 'normal', 'firm'];
+
+const keyboard: ModuleDefinition = {
+  type: 'keyboard',
+  label: 'Keyboard Block',
+  width: KEYBOARD_W,
+  depth: SQUARE,
+  ports: [
+    {
+      id: 'power-in',
+      label: 'Power input',
+      type: 'power',
+      direction: 'in',
+      local: { x: KEYBOARD_W / 2, z: 0 },
+      normal: { x: 1, z: 0 },
+      capacity: 1,
+    },
+    {
+      // aligned with the key input of a Text Block that sits directly in front of the left half
+      id: 'key-out',
+      label: 'Keyboard output',
+      type: 'keys',
+      direction: 'out',
+      local: { x: -(SQUARE + DOCK_GAP) / 2, z: -SQUARE / 2 },
+      normal: { x: 0, z: -1 },
+      capacity: 1,
+    },
+  ],
+  defaultConfig: (): KeyboardConfig => ({ pressure: 'normal' }),
+  sanitizeConfig: (raw): KeyboardConfig => ({
+    pressure:
+      isObj(raw) && (raw.pressure === 'light' || raw.pressure === 'firm') ? raw.pressure : 'normal',
+  }),
+};
+
+export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = { power, text, display, keyboard };
 
 export const MODULE_TYPES = Object.keys(MODULE_DEFINITIONS) as ModuleType[];
 

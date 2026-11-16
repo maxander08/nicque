@@ -10,6 +10,7 @@ import type { PortDef } from '@/types';
 const COLORS = {
   power: new Color('#ffd9a3'),
   text: new Color('#9fcbff'),
+  keys: new Color('#c9a8ff'),
   off: new Color('#2a2b30'),
   white: new Color('#ffffff'),
 };

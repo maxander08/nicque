@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { missingLinks } from '@/connections/suggest';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
-import { useStore } from '@/state/store';
+import { linkLabel, useStore } from '@/state/store';
 import { cn } from '@/utils/cn';
 import { StateMark, Switch, panelClass, stateLabel } from './primitives';
 
@@ -93,7 +93,7 @@ export function StatusPanel() {
                 return (
                   <li key={c.id} className="flex items-center justify-between gap-2 text-[13px]">
                     <span>
-                      <span className="text-neutral-400">{c.type === 'power' ? 'Power' : 'Text'}</span>{' '}
+                      <span className="text-neutral-400">{linkLabel[c.type]}</span>{' '}
                       {names.get(c.from.moduleId)?.replace(' Block', '')} →{' '}
                       {names.get(c.to.moduleId)?.replace(' Block', '')}
                       <span className="ml-1.5 text-xs text-neutral-400">{rc?.active ? 'active' : 'inactive'}</span>
@@ -112,7 +112,7 @@ export function StatusPanel() {
               {missing.map((l) => (
                 <li key={l.key} className="flex items-center justify-between gap-2 text-[13px]">
                   <span>
-                    <span className="text-neutral-400">{l.type === 'power' ? 'Power' : 'Text'}</span>{' '}
+                    <span className="text-neutral-400">{linkLabel[l.type]}</span>{' '}
                     {l.label.replace(/ Block/g, '')}
                     <span className="ml-1.5 text-xs text-amber-200/90">not linked</span>
                   </span>

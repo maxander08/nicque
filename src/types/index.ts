@@ -5,8 +5,8 @@
  * from transient runtime state (RuntimeState), which is always derived by the runtime engine.
  */
 
-export type ModuleType = 'power' | 'text' | 'display';
-export type PortType = 'power' | 'text';
+export type ModuleType = 'power' | 'text' | 'display' | 'keyboard';
+export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
 
 export interface Vec2 {
@@ -24,6 +24,12 @@ export interface DisplayConfig {
   align: 'left' | 'center';
 }
 
+/** Key pressure sensitivity of the Keyboard Block (actuation force and key-repeat behaviour). */
+export type KeyPressure = 'light' | 'normal' | 'firm';
+export interface KeyboardConfig {
+  pressure: KeyPressure;
+}
+
 interface ModuleBase {
   /** Stable identifier, preserved across save / load. */
   id: string;
@@ -37,7 +43,8 @@ interface ModuleBase {
 export type PowerModule = ModuleBase & { type: 'power'; config: PowerConfig };
 export type TextModule = ModuleBase & { type: 'text'; config: TextConfig };
 export type DisplayModule = ModuleBase & { type: 'display'; config: DisplayConfig };
-export type ModuleRecord = PowerModule | TextModule | DisplayModule;
+export type KeyboardModule = ModuleBase & { type: 'keyboard'; config: KeyboardConfig };
+export type ModuleRecord = PowerModule | TextModule | DisplayModule | KeyboardModule;
 
 export interface PortDef {
   id: string;
@@ -79,8 +86,11 @@ export type ModuleState = 'operational' | 'off' | 'unpowered' | 'waiting';
 
 export type ScreenContent =
   | { kind: 'off' }
-  | { kind: 'text'; text: string }
-  | { kind: 'empty' }
+  /** `typing` is true while a powered Keyboard Block is linked to the Text Block. */
+  | { kind: 'text'; text: string; typing?: boolean }
+  | { kind: 'empty'; typing?: boolean }
+  /** Keyboard LED screen. `linked` is true when its keystrokes reach a powered Text Block. */
+  | { kind: 'keys'; linked: boolean }
   | { kind: 'no-source' }
   | { kind: 'source-off' };
 

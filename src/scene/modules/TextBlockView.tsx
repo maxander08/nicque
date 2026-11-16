@@ -10,7 +10,7 @@ import { getMaterials } from '@/materials/library';
 import { useStore } from '@/state/store';
 import { useDisposable, useFontsReady, useScreenTexture } from '../hooks';
 import { ButtonCap, buttonHole } from '../parts/ButtonCap';
-import { LabelDecal } from '../parts/Decals';
+import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
 import { LedRow } from '../parts/LedRow';
 
@@ -19,7 +19,7 @@ const WIN = { cz: -0.3, w: 1.7, d: 0.7 };
 const BUTTONS = [
   { x: -0.55, action: 'edit', icon: 'edit', label: 'Edit button' },
   { x: 0, action: 'clear', icon: 'clear', label: 'Clear button' },
-  { x: 0.55, action: 'sample', icon: 'sample', label: 'Sample text button' },
+  { x: 0.55, action: 'undo', icon: 'undo', label: 'Restore sample text button' },
 ] as const;
 const BTN_Z = 0.52;
 const BTN_R = 0.19;
@@ -39,11 +39,12 @@ export function TextBlockView({ moduleId }: { moduleId: string }) {
   );
 
   const text = screen.kind === 'text' ? screen.text : '';
+  const typing = (screen.kind === 'text' || screen.kind === 'empty') && !!screen.typing;
   const tex = useScreenTexture(
     TEXT_SCREEN_W,
     TEXT_SCREEN_H,
     (ctx) => drawTextScreen(ctx, screen),
-    [screen.kind, text, fonts],
+    [screen.kind, text, typing, fonts],
   );
   const mat = useDisposable(
     () =>
@@ -83,7 +84,7 @@ export function TextBlockView({ moduleId }: { moduleId: string }) {
         />
       ))}
       <LedRow count={12} span={1.56} z={-0.84} level={operational ? 1 : 0} />
-      <LabelDecal text="Text" x={0} z={0.87} width={0.5} height={0.1} />
+      <BlockBadge name="Text" x={0} z={0.865} width={0.36} height={0.15} />
     </group>
   );
 }

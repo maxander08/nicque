@@ -1,6 +1,6 @@
 # Nicque — modular hardware simulator
 
-A real-time 3D, hardware-first visual programming prototype. Three physical modules (Power, Text, Display) sit on an endless gray plane. You move them, link their connectors, switch power and edit text; a deterministic runtime decides what each block does.
+A real-time 3D, hardware-first visual programming prototype. Four physical modules (Power, Text, Display, Keyboard) sit on an endless gray plane. You move them, link their connectors, switch power and edit text; a deterministic runtime decides what each block does.
 
 ## Commands
 
@@ -21,10 +21,20 @@ npm test           # vitest: runtime, connection validation, persistence, placem
 | Move | drag a block. *Snap* toggles a 0.25 grid; connectors that face each other magnetically dock with a 0.05 gap; housings can never intersect. Arrow keys nudge the selected block, `R` rotates it |
 | Link | drag from one connector (status light on the cover edge) to another. Invalid links are refused with an explanation. Click a linked connector to remove its link, or use *Disconnect* / *Link* in the panels |
 | Power | the physical button on the Power Block, the switch in the status panel or inspector, or `P` |
-| Edit text | select the Text Block and type in the inspector, or press its **Edit** button |
+| Edit text | select the Text Block and type in the inspector, or press its **Edit** button. The **undo** button restores the sample text |
+| Add / remove blocks | *Add block* in the top bar (a Keyboard docks in front of a free Text Block and is powered automatically); *Remove* in the inspector |
+| Keyboard | link *Keyboard → Text* (drag connector to connector, or *Link* in the status panel), then press the keys on the Keyboard's LED screen, or select it and type on your own keyboard |
 | Workspace | Save / Load (browser storage), Export / Import (JSON file), Reset. The workspace is also autosaved and restored on reload |
 
 **Initial state (deterministic):** power **on**, text `Hello, Nicque`, all three links established, camera at the default view.
+
+## Keyboard Block
+
+A 4×2 block with an LED screen (same LED lattice, colours and typeface as the Display Block) showing a full ANSI QWERTY layout: number row, Tab, Caps Lock, Shift, Enter, Backspace and Space. It has a power input and a **keys** output that links to the new *Keyboard input* connector on the Text Block. Letters follow Shift / Caps Lock live on the screen. While a powered Keyboard is selected, your physical keyboard types through it and the matching keys light up (Escape and arrows still reach the shortcuts).
+
+*Key pressure* (Light / Normal / Firm, in the inspector): touch and pen contacts must reach that force to register a key, keys glow brighter the harder they are pressed, and holding a key repeats it faster with more pressure. A mouse has no force sensor and always counts as a firm press.
+
+Every block carries a small, subtle "nicque" mark with the block's name printed below it.
 
 ## Layout and topology
 

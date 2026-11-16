@@ -9,6 +9,7 @@ import { useDisposable } from '../hooks';
 import { CORNER_RADIUS } from '../parts/Housing';
 import { PortView } from '../parts/PortView';
 import { DisplayBlockView } from './DisplayBlockView';
+import { KeyboardBlockView } from './KeyboardBlockView';
 import { PowerBlockView } from './PowerBlockView';
 import { TextBlockView } from './TextBlockView';
 
@@ -17,6 +18,7 @@ const BODIES: Record<ModuleType, ComponentType<{ moduleId: string }>> = {
   power: PowerBlockView,
   text: TextBlockView,
   display: DisplayBlockView,
+  keyboard: KeyboardBlockView,
 };
 
 const ringMaterial = new MeshBasicMaterial({

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { MAX_TEXT_LENGTH, MODULE_DEFINITIONS } from '@/modules/definitions';
+import { KEY_PRESSURES, MAX_TEXT_LENGTH, MODULE_DEFINITIONS } from '@/modules/definitions';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
 import { IconButton, Segmented, StateMark, Switch, panelClass, stateLabel } from './primitives';
@@ -15,7 +15,8 @@ export function Inspector() {
   const modules = workspace.modules;
   const runtimeConns = useStore((s) => s.runtime.connections);
   const focusNonce = useStore((s) => s.focusTextNonce);
-  const { select, setText, setPower, setAlign, rotateModule, disconnect } = useStore.getState();
+  const { select, setText, setPower, setAlign, rotateModule, removeModule, setKeyboardPressure, disconnect } =
+    useStore.getState();
   const area = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -120,6 +121,25 @@ export function Inspector() {
           </div>
         )}
 
+        {module.type === 'keyboard' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-medium">Key pressure</span>
+              <Segmented
+                label="Key pressure"
+                value={module.config.pressure}
+                onChange={(v) => setKeyboardPressure(module.id, v)}
+                options={KEY_PRESSURES.map((p) => ({ value: p, label: p[0].toUpperCase() + p.slice(1) }))}
+              />
+            </div>
+            <p className="text-xs leading-snug text-neutral-400">
+              Press the keys on its LED screen, or type on your own keyboard while this block is selected. Touch and
+              pen need that much force to register a key, and holding a key harder repeats it faster. A mouse
+              always counts as a firm press.
+            </p>
+          </div>
+        )}
+
         <div>
           <h3 className="mb-1.5 text-[13px] font-medium">Connectors</h3>
           <ul className="space-y-1.5">
@@ -135,7 +155,7 @@ export function Inspector() {
                     <span className="text-[13px]">
                       {p.label}
                       <span className="ml-1.5 text-xs text-neutral-400">
-                        {p.type === 'power' ? 'power' : 'text'} · {p.direction === 'out' ? 'output' : 'input'}
+                        {p.type === 'power' ? 'power' : p.type === 'keys' ? 'keys' : 'text'} · {p.direction === 'out' ? 'output' : 'input'}
                       </span>
                     </span>
                   </div>
@@ -179,7 +199,12 @@ export function Inspector() {
           Rotate
           <kbd className="rounded bg-white/10 px-1.5 text-[11px] text-neutral-300">R</kbd>
         </IconButton>
-        <span className="pr-2 text-xs text-neutral-400">Arrow keys nudge</span>
+        <IconButton onClick={() => removeModule(module.id)} aria-label={`Remove ${module.name}`}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Remove
+        </IconButton>
       </footer>
     </section>
   );

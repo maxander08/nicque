@@ -4,6 +4,7 @@ import {
   MeshBasicMaterial,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  RepeatWrapping,
   type Texture,
 } from 'three';
 import {
@@ -127,8 +128,19 @@ function getDotTextures() {
 }
 
 /** LED pad (silicone) material factory: one per screen because each owns its emissive texture. */
-export function makeSiliconeMaterial(emissiveMap: Texture) {
-  const { albedo, bump } = getDotTextures();
+export function makeSiliconeMaterial(emissiveMap: Texture, repeat?: [number, number]) {
+  const shared = getDotTextures();
+  // A non-square screen tiles the lattice (clones share the painted canvas) so the LEDs stay round.
+  const tiled = (t: Texture) => {
+    if (!repeat) return t;
+    const c = t.clone();
+    c.wrapS = c.wrapT = RepeatWrapping;
+    c.repeat.set(repeat[0], repeat[1]);
+    c.needsUpdate = true;
+    return c;
+  };
+  const albedo = tiled(shared.albedo);
+  const bump = tiled(shared.bump);
   return {
     material: new MeshPhysicalMaterial({
       map: albedo,
@@ -143,7 +155,12 @@ export function makeSiliconeMaterial(emissiveMap: Texture) {
       clearcoat: 0.25,
       clearcoatRoughness: 0.45,
     }),
-    // the dot lattice textures are shared and cached (expensive to paint), so there is nothing per-screen to free
-    dispose: () => undefined,
+    // the shared lattice textures are cached (expensive to paint); only tiled clones are per-screen
+    dispose: () => {
+      if (repeat) {
+        albedo.dispose();
+        bump.dispose();
+      }
+    },
   };
 }

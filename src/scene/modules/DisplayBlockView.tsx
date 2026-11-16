@@ -4,10 +4,11 @@ import { DISPLAY_SIZE, drawDisplayScreen } from '@/materials/screens';
 import { BLOCK_HEIGHT, MODULE_DEFINITIONS } from '@/modules/definitions';
 import { useStore } from '@/state/store';
 import { useFontsReady, useScreenTexture } from '../hooks';
+import { BlockBadge } from '../parts/Decals';
 import { Housing } from '../parts/Housing';
 
 const def = MODULE_DEFINITIONS.display;
-const WINDOW = 1.8;
+const WINDOW = 1.72;
 
 export function DisplayBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
@@ -44,6 +45,7 @@ export function DisplayBlockView({ moduleId }: { moduleId: string }) {
       <mesh position={[0, BLOCK_HEIGHT - 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} material={silicone.material} receiveShadow>
         <planeGeometry args={[WINDOW + 0.04, WINDOW + 0.04]} />
       </mesh>
+      <BlockBadge name="Display" x={0} z={0.925} width={0.34} height={0.14} />
     </group>
   );
 }

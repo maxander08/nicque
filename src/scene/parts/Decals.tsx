@@ -71,6 +71,69 @@ export const LabelDecal = memo(function LabelDecal({
   );
 });
 
+interface BadgeProps {
+  /** Block name, printed in capitals under the brand mark (e.g. "Text"). */
+  name: string;
+  x: number;
+  z: number;
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Printed identification on the top cover of every block: a small, subtle "nicque" mark and, below it,
+ * the block's name. Both lines are deliberately tiny.
+ */
+export const BlockBadge = memo(function BlockBadge({ name, x, z, width = 0.42, height = 0.17 }: BadgeProps) {
+  const fonts = useFontsReady();
+  const invalidate = useThree((s) => s.invalidate);
+  const tex = useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = Math.round((512 * height) / width);
+    const t = new CanvasTexture(c);
+    t.colorSpace = SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  }, [width, height]);
+  useEffect(() => {
+    const c = tex.image as HTMLCanvasElement;
+    const ctx = c.getContext('2d')!;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const spacing = (px: number) => {
+      (ctx as unknown as { letterSpacing: string }).letterSpacing = `${px}px`;
+    };
+    const h = c.height;
+    ctx.fillStyle = '#c3c6ce';
+    ctx.font = `700 ${Math.round(h * 0.33)}px ${SCREEN_FONT}`;
+    spacing(Math.round(h * 0.04));
+    ctx.fillText('nicque', c.width / 2, h * 0.3);
+    ctx.fillStyle = '#a4a8b2';
+    ctx.font = `600 ${Math.round(h * 0.25)}px ${SCREEN_FONT}`;
+    spacing(Math.round(h * 0.07));
+    ctx.fillText(name.toUpperCase(), c.width / 2, h * 0.72);
+    tex.needsUpdate = true;
+    invalidate();
+  }, [tex, name, fonts, invalidate]);
+  useEffect(() => () => tex.dispose(), [tex]);
+  return (
+    <mesh position={[x, TOP + 0.0012, z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
+      <planeGeometry args={[width, height]} />
+      <meshBasicMaterial
+        map={tex}
+        transparent
+        opacity={0.62}
+        depthWrite={false}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+      />
+    </mesh>
+  );
+});
+
 const iconCache = new Map<IconName, CanvasTexture>();
 export function getIconTexture(name: IconName): CanvasTexture {
   let t = iconCache.get(name);

@@ -3,7 +3,7 @@ import { MODULE_DEFINITIONS } from '@/modules/definitions';
 import { useStore } from '@/state/store';
 import { Housing } from '../parts/Housing';
 import { ButtonCap, buttonHole } from '../parts/ButtonCap';
-import { LabelDecal } from '../parts/Decals';
+import { BlockBadge } from '../parts/Decals';
 import { LedRow } from '../parts/LedRow';
 
 const def = MODULE_DEFINITIONS.power;
@@ -27,8 +27,7 @@ export function PowerBlockView({ moduleId }: { moduleId: string }) {
         label="Power button"
       />
       <LedRow count={22} span={3.3} z={-0.33} level={on ? 1 : 0} />
-      <LabelDecal text="Power" x={-1.35} z={0.04} width={0.7} />
-      <LabelDecal text="nicque" x={1.35} z={0.04} width={0.8} color="#b4b7c0" opacity={0.8} weight={700} />
+      <BlockBadge name="Power" x={-1.4} z={0.06} />
     </group>
   );
 }

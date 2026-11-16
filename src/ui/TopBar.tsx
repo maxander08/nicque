@@ -102,6 +102,63 @@ function WorkspaceMenu() {
   );
 }
 
+const ADDABLE = [
+  { type: 'keyboard', label: 'Keyboard', hint: 'Types into a Text Block' },
+  { type: 'text', label: 'Text', hint: 'Holds and sends text' },
+  { type: 'display', label: 'Display', hint: 'Shows text on LEDs' },
+  { type: 'power', label: 'Power', hint: 'Supplies other blocks' },
+] as const;
+
+function AddMenu() {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const addModule = useStore((s) => s.addModule);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={wrap} className="relative">
+      <IconButton aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)} active={open}>
+        <Icon d="M8 3v10M3 8h10" />
+        <span className="max-sm:hidden">Add block</span>
+      </IconButton>
+      {open && (
+        <div role="menu" aria-label="Add block" className={cn(panelClass, 'absolute right-0 top-11 w-56 p-1.5')}>
+          {ADDABLE.map((a) => (
+            <button
+              key={a.type}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                addModule(a.type);
+              }}
+              className="flex w-full flex-col rounded-md px-3 py-2 text-left hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none"
+            >
+              <span className="text-[13px] text-neutral-100">{a.label} Block</span>
+              <span className="text-xs text-neutral-400">{a.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function TopBar() {
   const quality = useStore((s) => s.quality);
   const snap = useStore((s) => s.snap);
@@ -136,6 +193,7 @@ export function TopBar() {
             { value: 'performance', label: 'Fast' },
           ]}
         />
+        <AddMenu />
         <WorkspaceMenu />
       </nav>
     </header>

@@ -2,6 +2,14 @@ import { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import { Plane, Raycaster, Vector2, Vector3, type Object3D } from 'three';
 import { validateConnection } from '@/connections/validate';
+import {
+  PRESSURE_PROFILES,
+  actuates,
+  effectivePressure,
+  keyAtUv,
+  keyById,
+  repeatInterval,
+} from '@/modules/keyboard';
 import { useStore } from '@/state/store';
 import type { PortRef } from '@/types';
 import { resolvePlacement } from './placement';
@@ -9,13 +17,23 @@ import { resolvePlacement } from './placement';
 type Pick =
   | { kind: 'module'; moduleId: string }
   | { kind: 'port'; moduleId: string; portId: string }
-  | { kind: 'button'; moduleId: string; action: string };
+  | { kind: 'button'; moduleId: string; action: string }
+  | { kind: 'keys'; moduleId: string; uv?: { u: number; v: number } };
 
 type DragState =
   | { kind: 'empty'; x: number; y: number; moved: boolean }
   | { kind: 'module'; id: string; offX: number; offZ: number; x: number; y: number; moved: boolean }
   | { kind: 'port'; from: PortRef; x: number; y: number; moved: boolean }
-  | { kind: 'button'; moduleId: string; action: string };
+  | { kind: 'button'; moduleId: string; action: string }
+  | {
+      kind: 'keys';
+      moduleId: string;
+      keyId: string;
+      pointerType: string;
+      pressure: number;
+      actuated: boolean;
+      timer: number;
+    };
 
 const THRESHOLD = 4;
 const GROUND = new Plane(new Vector3(0, 1, 0), 0);
@@ -57,7 +75,7 @@ export function InteractionController() {
         let o: Object3D | null = h.object;
         while (o) {
           const p = o.userData?.pick as Pick | undefined;
-          if (p) return p;
+          if (p) return p.kind === 'keys' && h.uv ? { ...p, uv: { u: h.uv.x, v: h.uv.y } } : p;
           o = o.parent;
         }
       }
@@ -78,6 +96,10 @@ export function InteractionController() {
 
     const endDrag = () => {
       const st = useStore.getState();
+      if (drag?.kind === 'keys') {
+        window.clearTimeout(drag.timer);
+        st.releaseKey(drag.moduleId, drag.keyId);
+      }
       st.setPressed(null);
       st.setLinkDrag(null);
       st.setDraggingId(null);
@@ -90,6 +112,26 @@ export function InteractionController() {
     };
 
     const onCancel = () => endDrag();
+
+    /** Actuates a key once the contact is firm enough, then repeats it while it stays pressed (harder = faster). */
+    const fireKey = (d: Extract<DragState, { kind: 'keys' }>) => {
+      const st = useStore.getState();
+      const kb = st.workspace.modules.find((m) => m.id === d.moduleId);
+      if (!kb || kb.type !== 'keyboard' || d.actuated) return;
+      if (!actuates(d.pressure, kb.config.pressure)) return;
+      d.actuated = true;
+      st.pressKey(d.moduleId, d.keyId, d.pressure);
+      const key = keyById(d.keyId);
+      if (!key || key.kind === 'shift' || key.kind === 'caps') return;
+      const profile = PRESSURE_PROFILES[kb.config.pressure];
+      const tick = () => {
+        if (drag !== d) return;
+        const s2 = useStore.getState();
+        s2.pressKey(d.moduleId, d.keyId, d.pressure, true);
+        d.timer = window.setTimeout(tick, repeatInterval(d.pressure, kb.config.pressure));
+      };
+      d.timer = window.setTimeout(tick, profile.repeatDelay);
+    };
 
     const onMove = (e: PointerEvent) => {
       const st = useStore.getState();
@@ -129,6 +171,10 @@ export function InteractionController() {
           target,
           verdict: target ? validateConnection(st.workspace, drag.from, target) : null,
         });
+      } else if (drag.kind === 'keys') {
+        drag.pressure = effectivePressure(drag.pointerType, e.pressure);
+        if (!drag.actuated) fireKey(drag);
+        else st.setKeyDown(drag.moduleId, drag.keyId, drag.pressure);
       } else if (drag.kind === 'button') {
         const pk = pickAt(e);
         const same = pk?.kind === 'button' && pk.moduleId === drag.moduleId && pk.action === drag.action;
@@ -171,14 +217,32 @@ export function InteractionController() {
       if (e.button !== 0 || !e.isPrimary) return;
       if (drag) endDrag();
       const st = useStore.getState();
-      const pk = pickAt(e);
+      let pk = pickAt(e);
+      let key = null as ReturnType<typeof keyAtUv>;
+      if (pk?.kind === 'keys') {
+        // keys only react on a powered keyboard; the gaps and margins of the screen still drag the block
+        key = pk.uv && st.runtime.modules[pk.moduleId]?.powered ? keyAtUv(pk.uv.u, pk.uv.v) : null;
+        if (!key) pk = { kind: 'module', moduleId: pk.moduleId };
+      }
       if (!pk) {
         drag = { kind: 'empty', x: e.clientX, y: e.clientY, moved: false };
       } else {
         // Hardware was hit: keep the press away from the orbit controls.
         e.stopPropagation();
         e.preventDefault();
-        if (pk.kind === 'module') {
+        if (pk.kind === 'keys' && key) {
+          st.select(pk.moduleId);
+          drag = {
+            kind: 'keys',
+            moduleId: pk.moduleId,
+            keyId: key.id,
+            pointerType: e.pointerType,
+            pressure: effectivePressure(e.pointerType, e.pressure),
+            actuated: false,
+            timer: 0,
+          };
+          fireKey(drag);
+        } else if (pk.kind === 'module') {
           st.select(pk.moduleId);
           const g = groundAt(e);
           const m = st.workspace.modules.find((x) => x.id === pk.moduleId);
@@ -200,7 +264,7 @@ export function InteractionController() {
             y: e.clientY,
             moved: false,
           };
-        } else {
+        } else if (pk.kind === 'button') {
           drag = { kind: 'button', moduleId: pk.moduleId, action: pk.action };
           st.setPressed(`${pk.moduleId}:${pk.action}`);
         }
@@ -227,6 +291,10 @@ export function InteractionController() {
         } else if (pk.kind === 'button') {
           st.setHover({ kind: 'button', moduleId: pk.moduleId, id: pk.action });
           setCursor('pointer');
+        } else if (pk.kind === 'keys') {
+          st.setHover({ kind: 'module', moduleId: pk.moduleId });
+          const over = pk.uv && st.runtime.modules[pk.moduleId]?.powered ? keyAtUv(pk.uv.u, pk.uv.v) : null;
+          setCursor(over ? 'pointer' : 'grab');
         } else if (pk.kind === 'port') {
           st.setHover({ kind: 'port', moduleId: pk.moduleId, id: pk.portId });
           setCursor('crosshair');

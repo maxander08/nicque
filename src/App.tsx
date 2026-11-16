@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { resolvePlacement, GRID_STEP } from '@/interactions/placement';
+import { useKeyboardTyping } from '@/interactions/useKeyboardTyping';
 import { Scene } from '@/scene/Scene';
 import { startAutosave, useStore } from '@/state/store';
 import { Hint, LinkHint, Toasts } from '@/ui/Feedback';
@@ -58,6 +59,7 @@ function useShortcuts() {
 
 export default function App() {
   useShortcuts();
+  useKeyboardTyping();
   useEffect(() => startAutosave(), []);
 
   return (

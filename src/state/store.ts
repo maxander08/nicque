@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 import { findFreePortPair } from '@/connections/suggest';
 import { validateConnection } from '@/connections/validate';
-import { DEFAULT_TEXT, MAX_TEXT_LENGTH } from '@/modules/definitions';
+import { spawnPlacement } from '@/interactions/spawn';
+import { DEFAULT_TEXT, MAX_TEXT_LENGTH, createModule, getDefinition } from '@/modules/definitions';
+import {
+  NO_MODS,
+  applyEdit,
+  editFor,
+  keyById,
+  type KeyEdit,
+  type Mods,
+} from '@/modules/keyboard';
 import { footprint, obbOverlap } from '@/modules/spatial';
 import {
   STORAGE_KEYS,
@@ -13,8 +22,11 @@ import {
 } from '@/persistence/workspace';
 import { evaluateWorkspace } from '@/runtime/evaluate';
 import type {
+  KeyPressure,
   ModuleRecord,
+  ModuleType,
   PortRef,
+  PortType,
   RuntimeState,
   ValidationResult,
   Vec2,
@@ -72,6 +84,8 @@ function loadSettings(): Settings {
 
 let toastSeq = 1;
 
+export const linkLabel: Record<'power' | 'text' | 'keys', string> = { power: 'Power', text: 'Text', keys: 'Keyboard' };
+
 interface Store {
   workspace: Workspace;
   runtime: RuntimeState;
@@ -85,6 +99,10 @@ interface Store {
   hover: HoverInfo | null;
   linkDrag: LinkDrag | null;
   draggingId: string | null;
+  /** Keys currently held on Keyboard Blocks: `${moduleId}:${keyId}` → pressure (0..1). */
+  keysDown: Record<string, number>;
+  /** Shift / Caps Lock state of every Keyboard Block (transient, never persisted). */
+  kbMods: Record<string, Mods>;
 
   select: (id: string | null) => void;
   moveModule: (id: string, pos: Vec2) => void;
@@ -93,7 +111,7 @@ interface Store {
   setPower: (id: string, enabled: boolean) => void;
   setAlign: (id: string, align: 'left' | 'center') => void;
   connect: (a: PortRef, b: PortRef) => ValidationResult;
-  linkModules: (fromId: string, toId: string, type: 'power' | 'text') => void;
+  linkModules: (fromId: string, toId: string, type: PortType) => void;
   disconnect: (connectionId: string) => void;
   pressButton: (moduleId: string, action: string) => void;
   setQuality: (q: Quality) => void;
@@ -110,6 +128,17 @@ interface Store {
   setHover: (h: HoverInfo | null) => void;
   setLinkDrag: (d: LinkDrag | null) => void;
   setDraggingId: (id: string | null) => void;
+  addModule: (type: ModuleType) => void;
+  removeModule: (id: string) => void;
+  setKeyboardPressure: (id: string, pressure: KeyPressure) => void;
+  /** Types an edit into every Text Block the keyboard is linked to. Returns false when nothing received it. */
+  typeEdit: (keyboardId: string, edit: KeyEdit, quiet?: boolean) => boolean;
+  /** On-screen key press. */
+  pressKey: (moduleId: string, keyId: string, pressure: number, repeat?: boolean) => void;
+  releaseKey: (moduleId: string, keyId: string) => void;
+  setKeyDown: (moduleId: string, keyId: string, pressure: number | null) => void;
+  setMods: (moduleId: string, mods: Partial<Mods>) => void;
+  clearKeys: (moduleId?: string) => void;
 }
 
 function initialWorkspace(): { ws: Workspace; warnings: string[] } {
@@ -191,6 +220,8 @@ export const useStore = create<Store>((set, get) => {
     hover: null,
     linkDrag: null,
     draggingId: null,
+    keysDown: {},
+    kbMods: {},
 
     select: (id) => {
       if (get().selectedId === id) return;
@@ -256,7 +287,7 @@ export const useStore = create<Store>((set, get) => {
       const fromName = ws.modules.find((m) => m.id === c.from.moduleId)?.name;
       const toName = ws.modules.find((m) => m.id === c.to.moduleId)?.name;
       commit({ ...ws, connections: [...ws.connections, c] }, true);
-      get().notify(`${c.type === 'power' ? 'Power' : 'Text'} link established · ${fromName} → ${toName}`, 'success');
+      get().notify(`${linkLabel[c.type]} link established · ${fromName} → ${toName}`, 'success');
       describeChanges(
         // Use the runtime of the workspace without the new link as the baseline.
         evaluateWorkspace(ws),
@@ -288,7 +319,7 @@ export const useStore = create<Store>((set, get) => {
       const prev = get().runtime;
       const next: Workspace = { ...ws, connections: ws.connections.filter((x) => x.id !== connectionId) };
       commit(next, true);
-      get().notify(`${c.type === 'power' ? 'Power' : 'Text'} link removed · ${fromName} → ${toName}`, 'info');
+      get().notify(`${linkLabel[c.type]} link removed · ${fromName} → ${toName}`, 'info');
       describeChanges(prev, get().runtime, next).forEach(([m, k]) => get().notify(m, k));
     },
 
@@ -311,7 +342,7 @@ export const useStore = create<Store>((set, get) => {
         } else if (action === 'clear') {
           s.setText(moduleId, '');
           s.notify('Text cleared', 'info');
-        } else if (action === 'sample') {
+        } else if (action === 'undo') {
           s.setText(moduleId, DEFAULT_TEXT);
           s.notify('Sample text restored', 'info');
         }
@@ -381,6 +412,130 @@ export const useStore = create<Store>((set, get) => {
     notify: (message, kind = 'info') =>
       set((s) => ({ toasts: [...s.toasts, { id: toastSeq++, kind, message }].slice(-3) })),
     dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+
+    addModule: (type) => {
+      const ws = get().workspace;
+      const def = getDefinition(type);
+      let n = 1;
+      const ids = new Set(ws.modules.map((m) => m.id));
+      while (ids.has(`${type}-${n}`)) n++;
+      const same = ws.modules.filter((m) => m.type === type).length;
+      const { position, rotation } = spawnPlacement(ws, type);
+      const mod = createModule(type, `${type}-${n}`, position, rotation, same > 0 ? `${def.label} ${same + 1}` : def.label);
+      commit({ ...ws, modules: [...ws.modules, mod] }, true);
+      set({ selectedId: mod.id });
+      get().notify(`${mod.name} added`, 'success');
+      // convenience: hook up power when a Power Block still has a free output
+      if (type !== 'power') {
+        const src = ws.modules.find(
+          (m) => m.type === 'power' && findFreePortPair(get().workspace, m, mod, 'power'),
+        );
+        if (src) get().linkModules(src.id, mod.id, 'power');
+      }
+    },
+
+    removeModule: (id) => {
+      const ws = get().workspace;
+      const cur = ws.modules.find((m) => m.id === id);
+      if (!cur) return;
+      get().clearKeys(id);
+      set({ selectedId: null });
+      commit(
+        {
+          modules: ws.modules.filter((m) => m.id !== id),
+          connections: ws.connections.filter((c) => c.from.moduleId !== id && c.to.moduleId !== id),
+        },
+        true,
+      );
+      get().notify(`${cur.name} removed`, 'info');
+    },
+
+    setKeyboardPressure: (id, pressure) => {
+      const ws = get().workspace;
+      const cur = ws.modules.find((m) => m.id === id);
+      if (!cur || cur.type !== 'keyboard' || cur.config.pressure === pressure) return;
+      commit(updateModule(ws, id, (m) => ({ ...m, config: { pressure } }) as ModuleRecord), true);
+    },
+
+    typeEdit: (keyboardId, edit, quiet = false) => {
+      const s = get();
+      const kb = s.workspace.modules.find((m) => m.id === keyboardId);
+      if (!kb || kb.type !== 'keyboard') return false;
+      if (!s.runtime.modules[keyboardId]?.powered) {
+        if (!quiet) s.notify(`${kb.name} has no power. Its keys are inactive.`, 'warn');
+        return false;
+      }
+      const targets = s.workspace.connections.filter(
+        (c) => c.type === 'keys' && c.from.moduleId === keyboardId && s.runtime.connections[c.id]?.active,
+      );
+      if (targets.length === 0) {
+        if (!quiet) s.notify('Link the keyboard to a powered Text Block to type into it.', 'warn');
+        return false;
+      }
+      for (const c of targets) {
+        const t = get().workspace.modules.find((m) => m.id === c.to.moduleId);
+        if (t && t.type === 'text') get().setText(t.id, applyEdit(t.config.value, edit, MAX_TEXT_LENGTH));
+      }
+      return true;
+    },
+
+    setKeyDown: (moduleId, keyId, pressure) => {
+      const key = `${moduleId}:${keyId}`;
+      const cur = get().keysDown;
+      if (pressure === null) {
+        if (!(key in cur)) return;
+        const next = { ...cur };
+        delete next[key];
+        set({ keysDown: next });
+      } else if (cur[key] !== pressure) {
+        set({ keysDown: { ...cur, [key]: pressure } });
+      }
+    },
+
+    setMods: (moduleId, mods) => {
+      const cur = get().kbMods[moduleId] ?? NO_MODS;
+      const next = { ...cur, ...mods };
+      if (next.shift === cur.shift && next.caps === cur.caps) return;
+      set({ kbMods: { ...get().kbMods, [moduleId]: next } });
+    },
+
+    clearKeys: (moduleId) => {
+      const cur = get().keysDown;
+      const keys = Object.keys(cur).filter((k) => !moduleId || k.startsWith(`${moduleId}:`));
+      if (keys.length === 0) return;
+      const next = { ...cur };
+      keys.forEach((k) => delete next[k]);
+      set({ keysDown: next });
+    },
+
+    pressKey: (moduleId, keyId, pressure, repeat = false) => {
+      const s = get();
+      const kb = s.workspace.modules.find((m) => m.id === moduleId);
+      const k = keyById(keyId);
+      if (!kb || kb.type !== 'keyboard' || !k) return;
+      s.setKeyDown(moduleId, keyId, pressure);
+      if (!s.runtime.modules[moduleId]?.powered) {
+        if (!repeat) s.notify(`${kb.name} has no power. Its keys are inactive.`, 'warn');
+        return;
+      }
+      const mods = s.kbMods[moduleId] ?? NO_MODS;
+      if (k.kind === 'shift') {
+        if (!repeat) s.setMods(moduleId, { shift: !mods.shift });
+        return;
+      }
+      if (k.kind === 'caps') {
+        if (!repeat) s.setMods(moduleId, { caps: !mods.caps });
+        return;
+      }
+      const edit = editFor(k, mods);
+      if (!edit) return;
+      get().typeEdit(moduleId, edit, repeat);
+      // an on-screen Shift applies to one key only
+      if (mods.shift) get().setMods(moduleId, { shift: false });
+    },
+
+    releaseKey: (moduleId, keyId) => get().setKeyDown(moduleId, keyId, null),
+
     setPressed: (key) => set({ pressed: key }),
     setHover: (h) => {
       const cur = get().hover;

@@ -100,6 +100,23 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     }
   }
 
+  /* 5b. keyboard links ------------------------------------------------- */
+  // A key link is active when both the Keyboard Block and the Text Block it types into are powered.
+  const typingInto = new Set<string>();
+  const keysSent = new Set<string>();
+  for (const c of valid) {
+    if (c.type !== 'keys') continue;
+    const active = powered.get(c.from.moduleId) === true && powered.get(c.to.moduleId) === true;
+    let reason = 'Typing into the Text Block';
+    if (powered.get(c.from.moduleId) !== true) reason = 'Keyboard Block is not powered';
+    else if (powered.get(c.to.moduleId) !== true) reason = 'Text Block is not powered';
+    connRuntime[c.id] = { id: c.id, valid: true, active, reason };
+    if (active) {
+      typingInto.add(c.to.moduleId);
+      keysSent.add(c.from.moduleId);
+    }
+  }
+
   /* 6. per-module runtime ---------------------------------------------- */
   const modules: Record<string, ModuleRuntime> = {};
   for (const m of ws.modules) {
@@ -122,11 +139,16 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         screen: { kind: 'off' },
       };
     } else if (m.type === 'text') {
+      const typing = typingInto.has(m.id);
       const screen: ScreenContent = !isPowered
         ? { kind: 'off' }
         : m.config.value.length === 0
-          ? { kind: 'empty' }
-          : { kind: 'text', text: m.config.value };
+          ? typing
+            ? { kind: 'empty', typing }
+            : { kind: 'empty' }
+          : typing
+            ? { kind: 'text', text: m.config.value, typing }
+            : { kind: 'text', text: m.config.value };
       const targets = valid.filter((c) => c.type === 'text' && c.from.moduleId === m.id).length;
       rt = {
         id: m.id,
@@ -135,11 +157,30 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         powered: isPowered,
         summary: isPowered ? 'Operational' : 'No power',
         detail: isPowered
-          ? targets === 0
-            ? 'Operational. Its output is not linked to a display.'
-            : `Operational. Sending text to ${targets} ${targets === 1 ? 'display' : 'displays'}.`
+          ? (typing ? 'Typing from a Keyboard Block. ' : '') +
+            (targets === 0
+              ? 'Operational. Its output is not linked to a display.'
+              : `Operational. Sending text to ${targets} ${targets === 1 ? 'display' : 'displays'}.`)
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen,
+      };
+    } else if (m.type === 'keyboard') {
+      const linked = keysSent.has(m.id);
+      const hasLink = valid.some((c) => c.type === 'keys' && c.from.moduleId === m.id);
+      rt = {
+        id: m.id,
+        type: 'keyboard',
+        state: isPowered ? 'operational' : 'unpowered',
+        powered: isPowered,
+        summary: !isPowered ? 'No power' : linked ? 'Typing' : 'Not linked',
+        detail: !isPowered
+          ? (unpoweredReason.get(m.id) ?? 'Not powered.')
+          : linked
+            ? 'Operational. Keystrokes are typed into the linked Text Block.'
+            : hasLink
+              ? 'Operational, but the linked Text Block is not powered.'
+              : 'Powered, but not linked. Connect its output to a Text Block to type into it.',
+        screen: isPowered ? { kind: 'keys', linked } : { kind: 'off' },
       };
     } else {
       const input = dataInto.get(m.id);
