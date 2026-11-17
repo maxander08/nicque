@@ -219,7 +219,7 @@ export function Inspector() {
             </div>
             <p className="text-xs leading-snug text-neutral-400">
               {module.type === 'keypad'
-                ? 'Press the keys on its LED screen (0–9 # * + . , ~), or type those characters on your own keyboard while this block is selected. '
+                ? 'Press the keys on its LED screen (0–9 # * + . , and Backspace), or type those characters on your own keyboard while this block is selected. '
                 : 'Press the keys on its LED screen, or type on your own keyboard while this block is selected. '}
               Touch and pen need that much force to register a key, and holding a key harder repeats it faster. A
               mouse always counts as a firm press.

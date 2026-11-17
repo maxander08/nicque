@@ -376,7 +376,7 @@ const keyboard: ModuleDefinition = {
 };
 
 /**
- * Keypad Block: a minimal, square sibling of the Keyboard Block with only 0–9 # * + . , ~ (a 4 × 4 pad).
+ * Keypad Block: a minimal, square sibling of the Keyboard Block with only 0–9 # * + . , and Backspace (a 4 × 4 pad).
  * Same connectors as the keyboard (power in on the east edge, key output on the north edge), so it plugs into
  * either key input of a Text Block.
  */

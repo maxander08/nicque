@@ -23,9 +23,22 @@ import { createDefaultWorkspace } from '../src/state/defaultWorkspace';
 import type { PortRef, Workspace } from '../src/types';
 
 describe('keypad layout', () => {
-  it('has exactly 0-9 # * + . , ~', () => {
+  it('has exactly 0-9 # * + . , and a Backspace key', () => {
     expect(KEYPAD_KEYS).toHaveLength(16);
-    expect([...KEYPAD_CHARS].sort().join('')).toBe([...'0123456789#*+.,~'].sort().join(''));
+    expect([...KEYPAD_CHARS].sort().join('')).toBe([...'0123456789#*+.,'].sort().join(''));
+    expect(KEYPAD_KEYS.filter((k) => k.kind === 'back')).toHaveLength(1);
+  });
+
+  it('puts Backspace in the bottom row, directly left of 0 (where ~ used to be)', () => {
+    const back = keyById('pad:Backspace')!;
+    const zero = padKeyByChar('0')!;
+    expect(back.kind).toBe('back');
+    expect(back.row).toBe(zero.row);
+    expect(back.x).toBe(zero.x - 1);
+    expect(back.x).toBe(0);
+    expect(padKeyByChar('~')).toBeUndefined();
+    expect(editFor(back, NO_MODS)).toEqual({ type: 'backspace' });
+    expect(editFor(back, { shift: true, caps: true })).toEqual({ type: 'backspace' });
   });
 
   it('types its own character, whatever Shift does', () => {

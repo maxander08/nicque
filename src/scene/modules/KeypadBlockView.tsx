@@ -30,7 +30,7 @@ function useDownSignature(moduleId: string) {
   });
 }
 
-/** Keypad Block: a small square pad with the keys 0–9 # * + . , ~ on an LED screen. */
+/** Keypad Block: a small square pad with the keys 0–9 # * + . , and Backspace on an LED screen. */
 export function KeypadBlockView({ moduleId }: { moduleId: string }) {
   const screen = useStore((s) => s.runtime.modules[moduleId]?.screen) ?? { kind: 'off' as const };
   const powered = useBlockOn(moduleId);

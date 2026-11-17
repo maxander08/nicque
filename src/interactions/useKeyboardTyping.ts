@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { KEYPAD_CHARS, TAB_TEXT, keyByCode, padKeyByChar, type KeyDef, type KeyEdit } from '@/modules/keyboard';
+import { KEYPAD_CHARS, PAD_BACKSPACE_ID, TAB_TEXT, keyByCode, keyById, padKeyByChar, type KeyDef, type KeyEdit } from '@/modules/keyboard';
 import { useStore } from '@/state/store';
 
 const isField = (t: EventTarget | null) =>
@@ -14,8 +14,9 @@ function editOf(e: KeyboardEvent): KeyEdit | null {
   return null;
 }
 
-/** What a physical key press types on a Keypad Block: only its own characters (0–9 # * + . , ~). */
+/** What a physical key press types on a Keypad Block: only its own characters (0–9 # * + . ,) and Backspace. */
 function padEditOf(e: KeyboardEvent): KeyEdit | null {
+  if (e.key === 'Backspace') return { type: 'backspace' };
   return e.key.length === 1 && KEYPAD_CHARS.includes(e.key) ? { type: 'insert', text: e.key } : null;
 }
 
@@ -49,7 +50,7 @@ export function useKeyboardTyping() {
       const edit = pad ? padEditOf(e) : editOf(e);
       if (!edit && !isModifier) return;
 
-      const key = pad ? padKeyByChar(e.key) : keyByCode(e.code);
+      const key = pad ? padKeyByChar(e.key) ?? (e.key === 'Backspace' ? keyById(PAD_BACKSPACE_ID) : undefined) : keyByCode(e.code);
       if (key) st.setKeyDown(kb.id, key.id, 0.8);
       syncMods(kb.id, e);
       if (edit) st.typeEdit(kb.id, edit, e.repeat);
@@ -64,7 +65,7 @@ export function useKeyboardTyping() {
       const type = st.workspace.modules.find((m) => m.id === id)?.type;
       if (type === 'keypad') {
         // the produced character can change while Shift is released first (# → 3), so Shift releases every key
-        const key: KeyDef | undefined = padKeyByChar(e.key);
+        const key: KeyDef | undefined = padKeyByChar(e.key) ?? (e.key === 'Backspace' ? keyById(PAD_BACKSPACE_ID) : undefined);
         if (key) st.setKeyDown(id, key.id, null);
         if (e.key === 'Shift') st.clearKeys(id);
         return;

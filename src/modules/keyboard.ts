@@ -93,15 +93,22 @@ export const KEYS: readonly KeyDef[] = buildLayout();
 /* ---- keypad layout ------------------------------------------------------------------------ */
 
 /**
- * The Keypad Block is a 4 × 4 pad with exactly sixteen keys: 0–9 # * + . , ~
- * Every key types its own character; Shift and Caps Lock make no difference to it.
+ * The Keypad Block is a 4 × 4 pad with exactly sixteen keys: 0–9 # * + . , and a Backspace key (left of 0).
+ * Every character key types its own character; Shift and Caps Lock make no difference to it.
+ * Backspace deletes the last character of the linked Text / Integer Block.
  */
 export const KEYPAD_COLS = 4;
 export const KEYPAD_ROWS = 4;
-const KEYPAD_ROWS_SPEC = ['123+', '456*', '789#', '~0.,'];
+const KEYPAD_ROWS_SPEC = ['123+', '456*', '789#', '<0.,'];
 
-/** Characters the Keypad Block can type. */
-export const KEYPAD_CHARS = KEYPAD_ROWS_SPEC.join('');
+/** Placeholder in the layout spec for the Backspace key. */
+const PAD_BACK = '<';
+
+/** Characters the Keypad Block can type (Backspace is a key, but not a character). */
+export const KEYPAD_CHARS = KEYPAD_ROWS_SPEC.join('').replace(PAD_BACK, '');
+
+/** Id of the keypad's Backspace key. */
+export const PAD_BACKSPACE_ID = 'pad:Backspace';
 
 /** Id of a keypad key. The `pad:` prefix keeps them apart from the keyboard's `KeyboardEvent.code` ids. */
 export const padKeyId = (ch: string) => `pad:${ch}`;
@@ -110,6 +117,10 @@ function buildKeypad(): KeyDef[] {
   const keys: KeyDef[] = [];
   KEYPAD_ROWS_SPEC.forEach((row, r) => {
     Array.from(row).forEach((ch, c) => {
+      if (ch === PAD_BACK) {
+        keys.push({ id: PAD_BACKSPACE_ID, code: PAD_BACKSPACE_ID, kind: 'back', base: '', shifted: '', label: 'Back', row: r, x: c, w: 1 });
+        return;
+      }
       keys.push({ id: padKeyId(ch), code: padKeyId(ch), kind: 'char', base: ch, shifted: ch, label: '', row: r, x: c, w: 1 });
     });
   });
@@ -120,7 +131,7 @@ export const KEYPAD_KEYS: readonly KeyDef[] = buildKeypad();
 
 const byId = new Map<string, KeyDef>([...KEYS, ...KEYPAD_KEYS].map((k) => [k.id, k]));
 const byCode = new Map(KEYS.map((k) => [k.code, k]));
-const padByChar = new Map(KEYPAD_KEYS.map((k) => [k.base, k]));
+const padByChar = new Map(KEYPAD_KEYS.filter((k) => k.kind === 'char').map((k) => [k.base, k]));
 export const keyById = (id: string) => byId.get(id);
 export const keyByCode = (code: string) => byCode.get(code);
 /** The keypad key that types a given character, if the keypad has one. */

@@ -379,13 +379,15 @@ export function drawKeypadScreen(
     ctx.strokeStyle = lit > 0 ? 'rgba(235,242,255,0.9)' : 'rgba(170,190,255,0.34)';
     ctx.stroke();
 
-    ctx.font = `700 ${KEY_FONT}px ${SCREEN_FONT}`;
+    // the Backspace key carries a text label, drawn like the Keyboard Block's Back key
+    const isBack = k.kind === 'back';
+    ctx.font = `700 ${isBack ? KEY_FONT_SMALL : KEY_FONT}px ${SCREEN_FONT}`;
     ctx.fillStyle = lit > 0.45 ? '#10163a' : '#f2f6ff';
     ctx.shadowColor = lit > 0.45 ? 'transparent' : 'rgba(160,190,255,0.55)';
     ctx.shadowBlur = lit > 0.45 ? 0 : 12;
-    // the printed glyphs of . , ~ sit on the baseline: nudge them so every legend looks centred
-    const nudge = k.base === '.' || k.base === ',' ? -16 : k.base === '~' || k.base === '*' ? 10 : 3;
-    ctx.fillText(k.base, cap.x + cap.w / 2, cap.y + cap.h / 2 + nudge);
+    // the printed glyphs of . , sit on the baseline: nudge them so every legend looks centred
+    const nudge = k.base === '.' || k.base === ',' ? -16 : k.base === '*' ? 10 : 3;
+    ctx.fillText(isBack ? k.label : k.base, cap.x + cap.w / 2, cap.y + cap.h / 2 + nudge);
     ctx.shadowBlur = 0;
   }
   ctx.globalAlpha = 1;
