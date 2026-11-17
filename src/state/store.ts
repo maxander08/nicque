@@ -77,7 +77,9 @@ interface Settings {
 }
 
 function loadSettings(): Settings {
-  const fallback: Settings = { quality: 'high', snap: true, lighting: 'studio' };
+  // Touch devices start on Medium (the GPU budget is far smaller); a saved choice always wins.
+  const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+  const fallback: Settings = { quality: coarse ? 'medium' : 'high', snap: true, lighting: 'studio' };
   try {
     const s = getBrowserStorage()?.getItem(SETTINGS_KEY);
     if (!s) return fallback;

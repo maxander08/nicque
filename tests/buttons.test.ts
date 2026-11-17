@@ -36,15 +36,14 @@ function loadAdderCircuit() {
 }
 
 describe('two output pins on Text and operator blocks', () => {
-  it('Text Block and every operator have two east outputs; the Integer Block keeps one', () => {
-    for (const t of ['text', 'adder', 'subtractor', 'multiplier', 'divisor'] as const) {
+  it('Text Block, Integer Block and every operator have two east outputs', () => {
+    for (const t of ['text', 'integer', 'adder', 'subtractor', 'multiplier', 'divisor'] as const) {
       const outs = MODULE_DEFINITIONS[t].ports.filter((p) => p.direction === 'out');
       expect(outs.map((p) => p.id)).toEqual(['data-out', 'data-out-2']);
       expect(outs.every((p) => p.normal.x === 1 && p.normal.z === 0 && p.local.x === MODULE_DEFINITIONS[t].width / 2)).toBe(true);
       expect(outs[0].capacity).toBe(1);
       expect(outs[1].capacity).toBe(1);
     }
-    expect(MODULE_DEFINITIONS.integer.ports.filter((p) => p.direction === 'out')).toHaveLength(1);
   });
 
   it('keeps both plugs clear of each other and of the rounded corner', () => {

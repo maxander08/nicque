@@ -32,9 +32,9 @@ describe('Integer block', () => {
     const i = MODULE_DEFINITIONS.integer;
     expect([i.width, i.depth]).toEqual([t.width, t.depth]);
     // same connectors in the same places; only the kind of data the output sends differs (integer vs text).
-    // The Text Block additionally has a second east output pin (`data-out-2`), the Integer Block keeps one.
+    // Both blocks carry the same two east output pins (`data-out`, `data-out-2`).
     const strip = (ports: typeof t.ports) => ports.map(({ kinds: _k, ...rest }) => rest);
-    expect(strip(i.ports)).toEqual(strip(t.ports.filter((p) => p.id !== 'data-out-2')));
+    expect(strip(i.ports)).toEqual(strip(t.ports));
   });
 });
 

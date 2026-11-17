@@ -23,6 +23,11 @@ export const FOG_DENSITY = 0.013;
 export interface QualitySettings {
   shadows: boolean;
   shadowMapSize: number;
+  /**
+   * PCF filter radius in shadow-map texels. three's PCF filter takes only 5 (bilinear) samples per pixel, so a radius
+   * much beyond 2 texels turns into visible grain; the radius is kept small and the map is fitted tightly instead.
+   */
+  shadowRadius: number;
   postprocessing: boolean;
   multisampling: number;
   dpr: [number, number];
@@ -37,6 +42,7 @@ export const QUALITY: Record<Quality, QualitySettings> = {
   high: {
     shadows: true,
     shadowMapSize: 2048,
+    shadowRadius: 2,
     postprocessing: true,
     multisampling: 4,
     dpr: [1, 2],
@@ -48,6 +54,7 @@ export const QUALITY: Record<Quality, QualitySettings> = {
     shadows: true,
     // 1024 is plenty for the 12x12 shadow frustum; the map is also only re-rendered when the scene changes.
     shadowMapSize: 1024,
+    shadowRadius: 1.5,
     postprocessing: true,
     // 2x MSAA + a 1.5 DPR cap cuts fill-rate and bandwidth by more than half on HiDPI screens.
     multisampling: 2,
@@ -59,6 +66,7 @@ export const QUALITY: Record<Quality, QualitySettings> = {
   performance: {
     shadows: false,
     shadowMapSize: 512,
+    shadowRadius: 1,
     postprocessing: false,
     multisampling: 0,
     dpr: [1, 1],

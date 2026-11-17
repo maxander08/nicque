@@ -146,3 +146,26 @@ textarea,
 input {
   user-select: text;
 }
+
+/* Notches and home indicators: keep the HUD clear of them. */
+.nq-safe-top {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-left: max(0.5rem, env(safe-area-inset-left));
+  padding-right: max(0.5rem, env(safe-area-inset-right));
+}
+@media (min-width: 768px) {
+  .nq-safe-top {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+}
+@media (max-width: 767px) {
+  .nq-safe-bottom {
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+  /* iOS zooms the page when a field under 16px is focused */
+  textarea,
+  input {
+    font-size: 16px;
+  }
+}

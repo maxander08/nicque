@@ -36,7 +36,7 @@ export function Inspector() {
       className={cn(
         panelClass,
         'pointer-events-auto absolute right-3 top-16 z-20 flex max-h-[calc(100%-6rem)] w-[320px] flex-col overflow-hidden',
-        'max-md:inset-x-2 max-md:bottom-2 max-md:top-auto max-md:w-auto max-md:max-h-[46vh]',
+        'max-md:inset-x-2 max-md:bottom-[4.75rem] max-md:top-auto max-md:w-auto max-md:max-h-[min(46dvh,calc(100dvh-15rem))]',
       )}
     >
       <header className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3">

@@ -54,7 +54,7 @@ export function StatusPanel() {
         aria-controls="status-drawer"
         aria-label={`${ok ? 'System operational' : 'Attention needed'}. Toggle status panel`}
         className={cn(
-          'pointer-events-auto absolute right-0 top-1/2 z-30 flex h-24 w-[7px] -translate-y-1/2 items-start justify-center rounded-l-full pt-2',
+          'pointer-events-auto absolute right-0 top-1/2 z-30 flex h-24 w-[7px] max-md:h-20 max-md:w-[12px] -translate-y-1/2 items-start justify-center rounded-l-full pt-2',
           'bg-white/30 transition-all duration-200 hover:w-[10px] hover:bg-white/50 focus-visible:w-[10px] focus-visible:outline-2 focus-visible:outline-white/80',
           open && 'pointer-events-none opacity-0',
         )}
@@ -72,6 +72,7 @@ export function StatusPanel() {
         className={cn(
           panelClass,
           'absolute bottom-auto right-3 top-16 z-30 flex max-h-[calc(100%-5.5rem)] w-[330px] flex-col overflow-hidden',
+          'max-md:top-[7.5rem] max-md:max-h-[calc(100%-12.5rem)]',
           'max-md:right-2 max-md:w-[min(330px,calc(100%-1rem))]',
           'transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none',
           open ? 'pointer-events-auto translate-x-0 opacity-100' : 'pointer-events-none translate-x-[calc(100%+1.5rem)] opacity-0',

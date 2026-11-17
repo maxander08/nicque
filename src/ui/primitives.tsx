@@ -27,6 +27,8 @@ export function IconButton({
       {...rest}
       className={cn(
         'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-medium text-neutral-200 transition-colors',
+        // comfortable touch target on phones
+        'max-md:h-10 max-md:min-w-10 max-md:justify-center max-md:px-2.5',
         'hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-white/80',
         'disabled:cursor-not-allowed disabled:opacity-40',
         active && 'bg-white/15 text-white',
@@ -94,7 +96,7 @@ export function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'h-8 rounded-md px-3 text-[13px] font-medium transition-colors',
+            'h-8 rounded-md px-3 text-[13px] font-medium transition-colors max-md:h-9 max-md:px-3.5',
             'focus-visible:outline-2 focus-visible:outline-white/80',
             value === o.value ? 'bg-neutral-100 text-neutral-900' : 'text-neutral-300 hover:text-white',
           )}

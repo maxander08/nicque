@@ -10,6 +10,9 @@ const ELEVATION = (54 * Math.PI) / 180;
 
 /** Default camera: front-top view that shows all three blocks and their connectors. */
 export function defaultCameraPosition(aspect: number): Vector3 {
+  // Phones in portrait: the old formula was capped by the orbit limit (22) and left the blocks at ~60% of the screen
+  // width. Frame the 4.5-unit-wide arrangement to ~85% of the width instead (the vertical field is 38 degrees).
+  if (aspect < 0.8) return new Vector3(0, Math.sin(ELEVATION) * (7.6 / aspect), Math.cos(ELEVATION) * (7.6 / aspect)).add(DEFAULT_TARGET);
   const dist = 11 * Math.pow(Math.max(1, 1.6 / aspect), 0.9);
   return new Vector3(0, Math.sin(ELEVATION) * dist, Math.cos(ELEVATION) * dist).add(DEFAULT_TARGET);
 }

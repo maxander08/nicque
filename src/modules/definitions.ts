@@ -231,7 +231,7 @@ const integer: ModuleDefinition = {
   label: 'Integer Block',
   width: TEXT_W,
   depth: TEXT_D,
-  ports: textPorts('integer'),
+  ports: textPorts('integer', 2),
   defaultConfig: (): IntegerConfig => ({ value: DEFAULT_INTEGER }),
   sanitizeConfig: (raw): IntegerConfig => ({
     value: isObj(raw) && typeof raw.value === 'string' ? sanitizeInteger(raw.value) : DEFAULT_INTEGER,

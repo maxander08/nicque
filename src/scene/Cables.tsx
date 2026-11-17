@@ -1,9 +1,10 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { CatmullRomCurve3, TubeGeometry, Vector3 } from 'three';
 import { Line } from '@react-three/drei';
 import { CABLE_RADIUS, PORT_HEIGHT, cablePath, isDocked } from '@/connections/cable';
 import { getMaterials } from '@/materials/library';
 import { MODULE_DEFINITIONS } from '@/modules/definitions';
+import { removeCableShape, setCableShape } from '@/rendering/cableShadow';
 import { footprint, portWorld, type WorldPort } from '@/modules/spatial';
 import { useStore } from '@/state/store';
 import type { ConnectionRecord, ModuleRecord, PortRef } from '@/types';
@@ -55,6 +56,17 @@ function LinkedCable({ c, modules }: { c: ConnectionRecord; modules: ModuleRecor
     return cablePath(ends(a), ends(b), obstacles);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, obstacleKey, docked]);
+  // Publish the finished cable so the ground can receive its shadow (all quality modes).
+  useEffect(() => {
+    if (!a || !b || docked || !points) {
+      removeCableShape(c.id);
+      return;
+    }
+    setCableShape(c.id, { points, ends: [{ ...a }, { ...b }] });
+    return () => removeCableShape(c.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.id, points, docked, key]);
+
   if (!a || !b || docked || !points) return null;
   return (
     <group>

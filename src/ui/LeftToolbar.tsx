@@ -288,9 +288,9 @@ export function LeftToolbar() {
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(null);
         }}
-        className="pointer-events-auto absolute left-3 top-1/2 z-30 -translate-y-1/2 max-sm:left-2"
+        className="nq-safe-bottom pointer-events-auto absolute left-3 top-1/2 z-30 -translate-y-1/2 max-md:bottom-2 max-md:left-2 max-md:top-auto max-md:translate-y-0"
       >
-        <nav aria-label="Block library and lighting" className={cn(panelClass, 'flex flex-col gap-1 p-1.5')}>
+        <nav aria-label="Block library and lighting" className={cn(panelClass, 'flex flex-col gap-1 p-1.5 max-md:flex-row')}>
           <RailButton id="library" label="Block library" active={panel === 'library'} onEnter={enter} onToggle={toggle}>
             <LibraryIcon />
           </RailButton>
@@ -301,11 +301,14 @@ export function LeftToolbar() {
 
         {panel && (
           // the left padding bridges the gap to the rail so the pointer never leaves the hover area
-          <div className="absolute left-full top-1/2 -translate-y-1/2 pl-2" onPointerEnter={keepOpen}>
+          <div
+            className="absolute left-full top-1/2 -translate-y-1/2 pl-2 max-md:bottom-full max-md:left-0 max-md:top-auto max-md:translate-y-0 max-md:pb-2 max-md:pl-0"
+            onPointerEnter={keepOpen}
+          >
             {panel === 'library' ? (
               <section
                 aria-label="Block library"
-                className={cn(panelClass, 'nq-flyout flex max-h-[calc(100dvh-7rem)] w-[250px] flex-col overflow-hidden')}
+                className={cn(panelClass, 'nq-flyout flex max-h-[calc(100dvh-7rem)] w-[250px] flex-col overflow-hidden max-md:max-h-[calc(100dvh-13.5rem)] max-md:w-[min(300px,calc(100vw-1rem))]')}
               >
                 <ScrollArea className="flex-1" contentClassName="p-2">
                 <h2 className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
@@ -337,12 +340,12 @@ export function LeftToolbar() {
                   ))}
                 </ul>
                 <p className="px-2 pb-1 pt-2 text-[11px] leading-snug text-neutral-500">
-                  Drag a block onto the workspace to place it.
+                  Drag a block onto the workspace to place it, or tap to add it.
                 </p>
                 </ScrollArea>
               </section>
             ) : (
-              <section aria-label="Lighting scenes" className={cn(panelClass, 'nq-flyout w-[250px] p-2')}>
+              <section aria-label="Lighting scenes" className={cn(panelClass, 'nq-flyout w-[250px] p-2 max-md:w-[min(300px,calc(100vw-1rem))]')}>
                 <h2 className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
                   Lighting
                 </h2>

@@ -39,7 +39,7 @@ export function Toasts() {
     <ul
       aria-live="polite"
       aria-label="Notifications"
-      className="pointer-events-none absolute inset-x-0 top-16 z-40 flex flex-col items-center gap-2 px-3 max-md:top-[4.25rem]"
+      className="pointer-events-none absolute inset-x-0 top-16 z-40 flex flex-col items-center gap-2 px-3 max-md:top-[7.5rem]"
     >
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} />
@@ -69,7 +69,7 @@ export function LinkHint() {
       role="status"
       className={cn(
         panelClass,
-        'pointer-events-none absolute bottom-6 left-1/2 z-40 max-w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 px-4 py-2.5 text-[13px]',
+        'pointer-events-none absolute bottom-6 max-md:bottom-[5rem] left-1/2 z-40 max-w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 px-4 py-2.5 text-[13px]',
         ok ? 'border-white/40' : 'border-amber-200/40',
       )}
     >
