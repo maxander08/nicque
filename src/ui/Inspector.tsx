@@ -121,7 +121,8 @@ export function Inspector() {
               {TEXT_OPERATORS.includes(module.type)
                 ? ' It works with Integer Blocks and, in addition, with Text Blocks.'
                 : ' It works with Integer Blocks only.'}{' '}
-              It holds no value of its own, so there is nothing to edit.
+              Its Clear button blanks the result stored in this operator only (the blocks feeding it keep their
+              values) and Undo brings it back.
             </p>
           </div>
         )}

@@ -143,7 +143,40 @@ export const TEXT_KEY_PITCH = 1;
  */
 export const OPERAND_PITCH = 0.65;
 
-const textPorts = (kind: DataKind): PortDef[] => [
+/**
+ * The east edge of a Text Block and of every operator block carries two output pins, spaced like the two operand
+ * pins on an operator's west edge. 'data-out' is the original output (level with the Display Block's input), so
+ * saved workspaces keep their links; 'data-out-2' sits below it. Every pin still holds exactly one wire.
+ */
+const dataOutPins = (kind: DataKind, count: 1 | 2): PortDef[] => {
+  const pins: PortDef[] = [
+    {
+      id: 'data-out',
+      label: 'Text output',
+      type: 'text',
+      direction: 'out',
+      local: { x: SQUARE / 2, z: TEXT_DATA_Z },
+      normal: { x: 1, z: 0 },
+      capacity: 1,
+      kinds: [kind],
+    },
+  ];
+  if (count === 2) {
+    pins.push({
+      id: 'data-out-2',
+      label: 'Text output (east 2)',
+      type: 'text',
+      direction: 'out',
+      local: { x: SQUARE / 2, z: TEXT_DATA_Z + OPERAND_PITCH },
+      normal: { x: 1, z: 0 },
+      capacity: 1,
+      kinds: [kind],
+    });
+  }
+  return pins;
+};
+
+const textPorts = (kind: DataKind, outputs: 1 | 2 = 1): PortDef[] => [
   {
     id: 'power-in',
     label: 'Power input',
@@ -153,16 +186,7 @@ const textPorts = (kind: DataKind): PortDef[] => [
     normal: { x: 0, z: -1 },
     capacity: 1,
   },
-  {
-    id: 'data-out',
-    label: 'Text output',
-    type: 'text',
-    direction: 'out',
-    local: { x: SQUARE / 2, z: TEXT_DATA_Z },
-    normal: { x: 1, z: 0 },
-    capacity: 1,
-    kinds: [kind],
-  },
+  ...dataOutPins(kind, outputs),
   // Two key inputs along the south edge. The ids stay stable ('key-in' is the original single input) so saved
   // workspaces keep their links. Either one accepts a Keyboard Block or a Keypad Block.
   {
@@ -190,7 +214,7 @@ const text: ModuleDefinition = {
   label: 'Text Block',
   width: TEXT_W,
   depth: TEXT_D,
-  ports: textPorts('text'),
+  ports: textPorts('text', 2),
   defaultConfig: (): TextConfig => ({ value: DEFAULT_TEXT }),
   sanitizeConfig: (raw): TextConfig => ({
     value:
@@ -240,7 +264,7 @@ export const operatorKinds = (type: OperatorType): DataKind[] =>
  */
 const operatorDef = (type: OperatorType): ModuleDefinition => {
   const kinds = operatorKinds(type);
-  const base = textPorts('integer');
+  const base = textPorts('integer', 2);
   return {
     type,
     label: OPERATORS[type].label,
@@ -269,10 +293,12 @@ const operatorDef = (type: OperatorType): ModuleDefinition => {
         capacity: 1,
         kinds,
       },
-      { ...base[1], label: 'Result output', kinds },
+      { ...base[1], label: 'Result output (east 1)', kinds },
+      { ...base[2], label: 'Result output (east 2)', kinds },
     ],
     defaultConfig: (): OperatorConfig => ({}),
-    sanitizeConfig: (): OperatorConfig => ({}),
+    // `cleared` is the operator's own clear button: its stored result is blank until its inputs change
+    sanitizeConfig: (raw): OperatorConfig => (isObj(raw) && raw.cleared === true ? { cleared: true } : {}),
   };
 };
 

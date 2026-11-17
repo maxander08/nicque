@@ -94,6 +94,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   // from whatever feeds them and publish the result like any other source. Operators may feed operators, so this is
   // resolved depth-first (validation already refuses loops; `visiting` is only a safety net).
   const opReason = new Map<string, string>(); // why an operator has no result right now
+  const opLive = new Map<string, string>(); // the result an operator computes, ignoring its own clear button
   const opDone = new Set<string>();
   const visiting = new Set<string>();
   const MAX_TEXT = 10000;
@@ -153,7 +154,11 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         if (BigInt(b.value) === 0n) opReason.set(m.id, 'Cannot divide by zero.');
         else result = (BigInt(a.value) / BigInt(b.value)).toString(); // whole numbers: truncates toward zero
       }
-      if (result !== undefined) textOut.set(m.id, result);
+      if (result !== undefined) {
+        opLive.set(m.id, result);
+        // the operator's own clear button blanks its stored result; the blocks feeding it are untouched
+        textOut.set(m.id, m.config && (m.config as { cleared?: boolean }).cleared ? '' : result);
+      }
     } finally {
       visiting.delete(m.id);
       opDone.add(m.id);
@@ -231,14 +236,18 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     } else if (isOperatorType(m.type)) {
       // Adder, Subtractor, Multiplier and Divisor Blocks: same body as a Text Block, no data of their own yet
       const name = OPERATORS[m.type as OperatorType].label;
+      const cleared = (m.config as { cleared?: boolean }).cleared === true;
       rt = {
         id: m.id,
         type: m.type,
         state: isPowered ? 'operational' : manualOff ? 'off' : 'unpowered',
         powered: isPowered,
-        summary: isPowered ? 'Operational' : manualOff ? 'Off' : 'No power',
+        liveResult: opLive.get(m.id),
+        summary: isPowered ? (cleared ? 'Cleared' : 'Operational') : manualOff ? 'Off' : 'No power',
         detail: isPowered
-          ? `${name} is an operator block. It is powered and ready.`
+          ? cleared
+            ? `${name}'s stored result was cleared. The blocks feeding it keep their values; Undo brings the result back, and it also returns as soon as an operand changes.`
+            : `${name} is an operator block. It is powered and ready.`
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen: isPowered ? { kind: 'empty' } : { kind: 'off' },
       };

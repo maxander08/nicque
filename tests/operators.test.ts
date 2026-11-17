@@ -21,7 +21,7 @@ describe('operator blocks', () => {
       const d = MODULE_DEFINITIONS[t];
       expect(d.width).toBe(text.width);
       expect(d.depth).toBe(text.depth);
-      expect(d.ports.map((p) => p.id)).toEqual(['power-in', 'data-in', 'data-in-2', 'data-out']);
+      expect(d.ports.map((p) => p.id)).toEqual(['power-in', 'data-in', 'data-in-2', 'data-out', 'data-out-2']);
       // the result node sits exactly where a Text Block's output does
       expect(d.ports.find((p) => p.id === 'data-out')!.local).toEqual(text.ports.find((p) => p.id === 'data-out')!.local);
     }

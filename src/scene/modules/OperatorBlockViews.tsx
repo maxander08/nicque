@@ -5,7 +5,7 @@ import { TextBlockView } from './TextBlockView';
 /**
  * Operator blocks look exactly like the Text Block (same housing, buttons, connectors and power LED) and only add the
  * yellow operator box (with the operator's symbol beside it) next to the power LED, plus their own printed name.
- * They have no pencil (edit) button: an operator holds no text or number to edit.
+ * None of the blocks has a pencil (edit) button: Clear and Undo are the only two buttons.
  */
 const operatorView = (type: OperatorType) =>
   function OperatorBlockView({ moduleId }: { moduleId: string }) {

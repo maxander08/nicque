@@ -51,9 +51,9 @@ describe('keypad layout', () => {
 describe('text block with two south key inputs', () => {
   const text = MODULE_DEFINITIONS.text;
 
-  it('has 1 east, 1 north and 2 south connectors', () => {
+  it('has 2 east, 1 north and 2 south connectors', () => {
     const side = (nx: number, nz: number) => text.ports.filter((p) => p.normal.x === nx && p.normal.z === nz);
-    expect(side(1, 0)).toHaveLength(1);
+    expect(side(1, 0)).toHaveLength(2);
     expect(side(0, -1)).toHaveLength(1);
     expect(side(0, 1)).toHaveLength(2);
     expect(side(-1, 0)).toHaveLength(0);

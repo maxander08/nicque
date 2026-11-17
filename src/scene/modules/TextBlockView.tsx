@@ -18,23 +18,17 @@ const BTN_PITCH = (BTN_R + BUTTON_CLEARANCE) * 2 + 0.14;
 /** The buttons sit in the middle of the content area (between the header and the footer). */
 const BTN_Z = (contentTopZ(def.depth) + contentBottomZ(def.depth)) / 2;
 
+/** No block has a pencil (edit) button any more: Clear and Undo sit centred in the content area. */
 const BUTTONS = [
-  { x: -BTN_PITCH, action: 'edit', icon: 'edit', label: 'Edit button' },
-  { x: 0, action: 'clear', icon: 'clear', label: 'Clear button' },
-  { x: BTN_PITCH, action: 'undo', icon: 'undo', label: 'Restore sample text button' },
-] as const;
-
-/** Operator blocks have no pencil (edit) button: the two that remain sit centred in the content area. */
-const OPERATOR_BUTTONS = [
-  { ...BUTTONS[1], x: -BTN_PITCH / 2 },
-  { ...BUTTONS[2], x: BTN_PITCH / 2 },
+  { x: -BTN_PITCH / 2, action: 'clear', icon: 'clear', label: 'Clear button' },
+  { x: BTN_PITCH / 2, action: 'undo', icon: 'undo', label: 'Undo button' },
 ] as const;
 
 const CONTROLS = withPower();
 
 /**
- * The Text Block is a pure input device: it has no screen. Its buttons edit, clear and restore the text, and the
- * result is read on a Display Block that the Text Block is linked to. The Integer Block reuses this exact body
+ * The Text Block is a pure input device: it has no screen. Its buttons clear the text and undo the last change, and
+ * the result is read on a Display Block that the Text Block is linked to. The Integer Block reuses this exact body
  * and only changes the printed name; the operator blocks (Adder, Subtractor, Multiplier,
  * Divisor) additionally show a yellow box next to the power LED.
  */
@@ -45,11 +39,11 @@ export function TextBlockView({
 }: {
   moduleId: string;
   badge?: string;
-  /** Set on operator blocks: which operator this is (yellow box + symbol, and no edit button). */
+  /** Set on operator blocks: which operator this is (yellow box + symbol). */
   operator?: OperatorType;
 }) {
   const powered = useBlockOn(moduleId);
-  const buttons = operator ? OPERATOR_BUTTONS : BUTTONS;
+  const buttons = BUTTONS;
 
   const holes = useMemo(
     () => [

@@ -27,8 +27,14 @@ export interface TextConfig {
 export interface IntegerConfig {
   value: string;
 }
-/** Operator blocks (Adder, Subtractor, Multiplier, Divisor) look like a Text Block and carry no data of their own yet. */
-export type OperatorConfig = Record<string, never>;
+/**
+ * Operator blocks (Adder, Subtractor, Multiplier, Divisor) look like a Text Block. Their result is computed from
+ * their operand pins; `cleared` is true after the operator's own clear button was pressed: the stored result is blank
+ * (the Integer / Text Blocks feeding it keep their values) until the operands change.
+ */
+export interface OperatorConfig {
+  cleared?: boolean;
+}
 export interface DisplayConfig {
   align: 'left' | 'center';
   /**
@@ -140,6 +146,11 @@ export interface ModuleRuntime {
   type: ModuleType;
   state: ModuleState;
   powered: boolean;
+  /**
+   * Operator blocks only: the result computed from the operands, ignoring the operator's own clear button. Used to
+   * release a cleared operator when its result changes.
+   */
+  liveResult?: string;
   /** Short human readable status. */
   summary: string;
   /** Longer explanation, useful for the inspector. */

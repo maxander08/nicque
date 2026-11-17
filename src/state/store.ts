@@ -4,8 +4,6 @@ import { validateConnection } from '@/connections/validate';
 import { resolveDrop } from '@/interactions/drop';
 import { spawnPlacement } from '@/interactions/spawn';
 import {
-  DEFAULT_INTEGER,
-  DEFAULT_TEXT,
   MAX_TEXT_LENGTH,
   createModule,
   getDefinition,
@@ -44,6 +42,7 @@ import type {
 } from '@/types';
 import { createDefaultWorkspace } from './defaultWorkspace';
 import { releaseClearedDisplays } from './displayClear';
+import { releaseClearedOperators } from './operatorClear';
 
 export type Quality = 'high' | 'medium' | 'performance';
 export type ToastKind = 'info' | 'success' | 'warn' | 'error';
@@ -65,6 +64,9 @@ export interface HoverInfo {
   moduleId: string;
   id?: string;
 }
+
+/** How many past values a Text / Integer Block remembers for Undo. */
+const HISTORY_LIMIT = 200;
 
 const SETTINGS_KEY = 'nicque.settings.v1';
 
@@ -118,11 +120,18 @@ interface Store {
   keysDown: Record<string, number>;
   /** Shift / Caps Lock state of every Keyboard Block (transient, never persisted). */
   kbMods: Record<string, Mods>;
+  /**
+   * Undo history of every Text / Integer Block: the values it held before each change, oldest first. Transient
+   * (never persisted); the Undo button steps back through it one change at a time.
+   */
+  valueHistory: Record<string, string[]>;
 
   select: (id: string | null) => void;
   moveModule: (id: string, pos: Vec2) => void;
   rotateModule: (id: string) => void;
   setText: (id: string, value: string) => void;
+  /** Undo button of a Text / Integer / operator block: reverts that block's previous action. */
+  undoBlock: (id: string) => void;
   setPower: (id: string, enabled: boolean) => void;
   setAlign: (id: string, align: 'left' | 'center') => void;
   connect: (a: PortRef, b: PortRef) => ValidationResult;
@@ -134,6 +143,8 @@ interface Store {
    * shows it again once that data (or the link) changes.
    */
   clearDisplay: (displayId: string) => void;
+  /** Clear button of an operator block: blanks the operator's own stored result, never the blocks feeding it. */
+  clearOperator: (operatorId: string) => void;
   setQuality: (q: Quality) => void;
   setSnap: (v: boolean) => void;
   setLighting: (id: LightingId) => void;
@@ -226,9 +237,15 @@ export const useStore = create<Store>((set, get) => {
   /** Applies a logic change: recompute runtime once and emit feedback. */
   const commit = (incoming: Workspace, quiet = false) => {
     // a Display that was cleared with its own button shows live data again once its feed changes
-    const ws = releaseClearedDisplays(get().workspace, incoming);
+    let ws = releaseClearedDisplays(get().workspace, incoming);
     const prev = get().runtime;
-    const next = evaluateWorkspace(ws);
+    let next = evaluateWorkspace(ws);
+    // an operator cleared with its own button computes live again once its operands change
+    const released = releaseClearedOperators(ws, prev, next);
+    if (released !== ws) {
+      ws = released;
+      next = evaluateWorkspace(ws);
+    }
     set({ workspace: ws, runtime: next });
     if (!quiet) describeChanges(prev, next, ws).forEach(([m, k]) => get().notify(m, k));
   };
@@ -249,6 +266,7 @@ export const useStore = create<Store>((set, get) => {
     draggingId: null,
     keysDown: {},
     kbMods: {},
+    valueHistory: {},
 
     select: (id) => {
       if (get().selectedId === id) return;
@@ -288,7 +306,35 @@ export const useStore = create<Store>((set, get) => {
       // the Integer Block only ever holds a whole number: anything else is dropped
       const v = cur.type === 'integer' ? sanitizeInteger(value) : value.slice(0, MAX_TEXT_LENGTH);
       if (cur.config.value === v) return;
+      // remember the value this change replaces, so Undo can bring it back
+      const past = get().valueHistory[id] ?? [];
+      set({ valueHistory: { ...get().valueHistory, [id]: [...past, cur.config.value].slice(-HISTORY_LIMIT) } });
       commit(updateModule(ws, id, (m) => ({ ...m, config: { value: v } }) as ModuleRecord), true);
+    },
+
+    undoBlock: (id) => {
+      const s = get();
+      const cur = s.workspace.modules.find((m) => m.id === id);
+      if (!cur) return;
+      if (cur.type === 'text' || cur.type === 'integer') {
+        const past = s.valueHistory[id] ?? [];
+        if (past.length === 0) {
+          s.notify('Nothing to undo', 'info');
+          return;
+        }
+        const previous = past[past.length - 1];
+        set({ valueHistory: { ...s.valueHistory, [id]: past.slice(0, -1) } });
+        commit(updateModule(s.workspace, id, (m) => ({ ...m, config: { value: previous } }) as ModuleRecord), true);
+        s.notify(cur.type === 'integer' ? 'Undid the last integer change' : 'Undid the last text change', 'info');
+      } else if (isOperatorType(cur.type)) {
+        // the only thing an operator can undo is its own clear button
+        if ((cur.config as { cleared?: boolean }).cleared !== true) {
+          s.notify('Nothing to undo', 'info');
+          return;
+        }
+        commit(updateModule(s.workspace, id, (m) => ({ ...m, config: {} }) as ModuleRecord), true);
+        s.notify(`${cur.name} result restored`, 'info');
+      }
     },
 
     /** Switches a block on or off with its own power button. A Power Block switches its supply instead. */
@@ -389,22 +435,37 @@ export const useStore = create<Store>((set, get) => {
       }
       if (m.type === 'text' || m.type === 'integer') {
         const isInt = m.type === 'integer';
-        if (action === 'edit') {
-          set({ selectedId: moduleId, focusTextNonce: s.focusTextNonce + 1 });
-        } else if (action === 'clear') {
+        if (action === 'clear') {
           // X on a Text / Integer Block empties the block itself, so every display it feeds goes blank too
           s.setText(moduleId, '');
           s.notify(isInt ? 'Integer cleared' : 'Text cleared', 'info');
         } else if (action === 'undo') {
-          s.setText(moduleId, isInt ? DEFAULT_INTEGER : DEFAULT_TEXT);
-          s.notify(isInt ? 'Sample integer restored' : 'Sample text restored', 'info');
+          s.undoBlock(moduleId);
         }
       } else if (isOperatorType(m.type)) {
-        // operator blocks share the Text Block's buttons but hold no text or number of their own
-        s.notify(`${m.name} is an operator block. It has no value to ${action === 'edit' ? 'edit' : action === 'clear' ? 'clear' : 'restore'}.`, 'info');
+        if (action === 'clear') {
+          // clears the value stored in the operator block only: the Integer / Text Blocks feeding it keep their data
+          s.clearOperator(moduleId);
+        } else if (action === 'undo') {
+          s.undoBlock(moduleId);
+        }
       } else if (m.type === 'display' && action === 'clear') {
         s.clearDisplay(moduleId);
       }
+    },
+
+    clearOperator: (operatorId) => {
+      const s = get();
+      const op = s.workspace.modules.find((m) => m.id === operatorId);
+      if (!op || !isOperatorType(op.type)) return;
+      const rt = s.runtime.modules[operatorId];
+      if ((op.config as { cleared?: boolean }).cleared === true || rt?.liveResult === undefined || rt.liveResult === '') {
+        s.notify(`${op.name} holds no result to clear`, 'info');
+        return;
+      }
+      // Only the operator's stored result is blanked. The blocks feeding it are left untouched.
+      commit(updateModule(s.workspace, operatorId, (m) => ({ ...m, config: { cleared: true } }) as ModuleRecord), true);
+      s.notify(`${op.name} cleared · the blocks feeding it keep their values`, 'info');
     },
 
     clearDisplay: (displayId) => {
@@ -467,7 +528,8 @@ export const useStore = create<Store>((set, get) => {
       const res = storage ? loadWorkspace(storage, STORAGE_KEYS.saved) : null;
       if (!res) return get().notify('No saved workspace found. Use Save first.', 'warn');
       if (!res.ok) return get().notify(`Load failed. ${res.error}`, 'error');
-      set({ selectedId: null });
+      // a freshly loaded workspace keeps its cleared operators: compare it against itself, not the old workspace
+      set({ selectedId: null, valueHistory: {}, runtime: evaluateWorkspace(res.workspace) });
       commit(res.workspace, true);
       get().notify('Workspace loaded', 'success');
       res.warnings.slice(0, 2).forEach((w) => get().notify(w, 'warn'));
@@ -481,7 +543,8 @@ export const useStore = create<Store>((set, get) => {
         get().notify(`Import failed. ${res.error}`, 'error');
         return false;
       }
-      set({ selectedId: null });
+      // a freshly loaded workspace keeps its cleared operators: compare it against itself, not the old workspace
+      set({ selectedId: null, valueHistory: {}, runtime: evaluateWorkspace(res.workspace) });
       commit(res.workspace, true);
       get().notify('Workspace imported', 'success');
       res.warnings.slice(0, 2).forEach((w) => get().notify(w, 'warn'));
@@ -489,7 +552,7 @@ export const useStore = create<Store>((set, get) => {
     },
 
     resetWorkspace: () => {
-      set({ selectedId: null });
+      set({ selectedId: null, valueHistory: {} });
       commit(createDefaultWorkspace(), true);
       get().notify('Workspace reset to the default arrangement', 'info');
     },
@@ -524,7 +587,9 @@ export const useStore = create<Store>((set, get) => {
       const cur = ws.modules.find((m) => m.id === id);
       if (!cur) return;
       get().clearKeys(id);
-      set({ selectedId: null });
+      const { [id]: _history, ...otherHistory } = get().valueHistory;
+      void _history;
+      set({ selectedId: null, valueHistory: otherHistory });
       commit(
         {
           modules: ws.modules.filter((m) => m.id !== id),
