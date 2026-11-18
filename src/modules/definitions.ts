@@ -1,4 +1,5 @@
 import type {
+  DecimalConfig,
   DisplayConfig,
   IntegerConfig,
   KeyboardConfig,
@@ -14,6 +15,7 @@ import type {
   TextConfig,
   Vec2,
 } from '@/types';
+import { sanitizeDecimal } from './bigDecimal';
 import { KB_CELLS_X, KB_CELLS_Y, KP_CELLS_X, KP_CELLS_Y, LED_CELL } from './keyboard';
 import { EDGE, FOOTER, HEADER, depthForWindow } from './layout';
 
@@ -24,6 +26,7 @@ export const DOCK_GAP = 0.05;
 export const MAX_TEXT_LENGTH = 2000;
 export const DEFAULT_TEXT = 'Hello, Nicque';
 export const DEFAULT_INTEGER = '42';
+export const DEFAULT_DECIMAL = '3.14';
 /** Longest integer an Integer Block holds (digits only, the minus sign is extra). */
 export const MAX_INTEGER_DIGITS = 18;
 
@@ -238,6 +241,23 @@ const integer: ModuleDefinition = {
   }),
 };
 
+/**
+ * The Decimal Block is the Integer Block for arbitrary-precision decimals (BigDecimal): same size, buttons and
+ * connectors (power input, two key inputs, two data outputs), only the value it holds differs and it has no limit
+ * on the number of digits.
+ */
+const decimal: ModuleDefinition = {
+  type: 'decimal',
+  label: 'Decimal Block',
+  width: TEXT_W,
+  depth: TEXT_D,
+  ports: textPorts('decimal', 2),
+  defaultConfig: (): DecimalConfig => ({ value: DEFAULT_DECIMAL }),
+  sanitizeConfig: (raw): DecimalConfig => ({
+    value: isObj(raw) && typeof raw.value === 'string' ? sanitizeDecimal(raw.value) : DEFAULT_DECIMAL,
+  }),
+};
+
 /** The four operator types, with the name printed on the block and the symbol shown in the UI. */
 export const OPERATORS: Record<OperatorType, { label: string; badge: string; symbol: string; hint: string }> = {
   adder: { label: 'Adder Block', badge: 'Adder', symbol: '+', hint: 'Operator: adds' },
@@ -254,7 +274,7 @@ export const isOperatorType = (t: unknown): t is OperatorType => typeof t === 's
 export const TEXT_OPERATORS: OperatorType[] = ['adder', 'multiplier'];
 /** Data kinds an operator's nodes work with. Only the Adder and Multiplier also work with text. */
 export const operatorKinds = (type: OperatorType): DataKind[] =>
-  TEXT_OPERATORS.includes(type) ? ['integer', 'text'] : ['integer'];
+  TEXT_OPERATORS.includes(type) ? ['integer', 'decimal', 'text'] : ['integer', 'decimal'];
 
 /**
  * An operator block has the footprint, header, buttons and power connector of a Text Block (it looks the same);
@@ -330,7 +350,7 @@ const display: ModuleDefinition = {
       local: { x: -SQUARE / 2, z: 0 },
       normal: { x: -1, z: 0 },
       capacity: 1,
-      kinds: ['text', 'integer'],
+      kinds: ['text', 'integer', 'decimal'],
     },
   ],
   defaultConfig: (): DisplayConfig => ({ align: 'center' }),
@@ -420,6 +440,7 @@ export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = {
   power,
   text,
   integer,
+  decimal,
   adder,
   subtractor,
   multiplier,

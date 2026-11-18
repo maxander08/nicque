@@ -59,7 +59,7 @@ describe('node compatibility', () => {
     expect(div.ok).toBe(false);
     if (!sub.ok) {
       expect(sub.code).toBe('incompatible');
-      expect(sub.message).toMatch(/integers only/);
+      expect(sub.message).toMatch(/integers and decimals/);
     }
   });
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { decimalOp, isDecimal } from '@/modules/bigDecimal';
 import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isInteger, isOperatorType } from '@/modules/definitions';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
@@ -119,8 +120,8 @@ export function Inspector() {
             <p className="text-xs leading-snug text-neutral-400">
               The yellow box and symbol next to the power LED mark this as the {OPERATORS[module.type].badge} operator.
               {TEXT_OPERATORS.includes(module.type)
-                ? ' It works with Integer Blocks and, in addition, with Text Blocks.'
-                : ' It works with Integer Blocks only.'}{' '}
+                ? ' It works with Integer and Decimal Blocks and, in addition, with Text Blocks.'
+                : ' It works with Integer and Decimal Blocks only.'}{' '}
               Its Clear button blanks the result stored in this operator only (the blocks feeding it keep their
               values) and Undo brings it back.
             </p>
@@ -170,6 +171,51 @@ export function Inspector() {
           </div>
         )}
 
+        {module.type === 'decimal' && (
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between">
+              <label htmlFor="decimal-value" className="text-[13px] font-medium">
+                Decimal
+              </label>
+              <span className="text-xs text-neutral-400">
+                {module.config.value.replace(/\D/g, '').length} digits · no limit
+              </span>
+            </div>
+            <Stepper
+              label="decimal"
+              onStep={(dir) => {
+                // BigDecimal keeps every digit exact while stepping (the number of decimals is kept)
+                const cur = isDecimal(module.config.value) ? module.config.value : '0';
+                setText(module.id, decimalOp.add(cur, dir > 0 ? '1' : '-1'));
+              }}
+            >
+              <input
+                id="decimal-value"
+                ref={intInput}
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={module.config.value}
+                onChange={(e) => setText(module.id, e.target.value)}
+                placeholder="e.g. 3.14 or -0.5"
+                spellCheck={false}
+                aria-invalid={module.config.value !== '' && !isDecimal(module.config.value)}
+                className="w-full bg-transparent px-3 py-2 text-center font-mono text-[15px] text-neutral-50 outline-none placeholder:text-neutral-500"
+              />
+            </Stepper>
+            <p className="mt-1.5 text-xs leading-snug text-neutral-400">
+              Digits, one decimal point and a leading minus sign are accepted; anything else is ignored. The number is
+              an arbitrary-precision decimal (BigDecimal) with as many digits as memory allows. Like the Integer Block
+              it has no screen of its own: link its output to a Display Block to see the number.
+            </p>
+            {!rt.powered && (
+              <p className="mt-1.5 text-xs text-amber-200/90">
+                The block is unpowered. The number is kept and will be sent once power returns.
+              </p>
+            )}
+          </div>
+        )}
+
         {module.type === 'display' && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -199,7 +245,7 @@ export function Inspector() {
               </IconButton>
             </div>
             <p className="text-xs leading-snug text-neutral-400">
-              Clear blanks this screen only: the Text or Integer Block feeding it keeps its data, and the screen
+              Clear blanks this screen only: the Text, Integer or Decimal Block feeding it keeps its data, and the screen
               shows it again as soon as that data changes. Lines wrap at word boundaries and the type size shrinks to fit. Text that still does not fit is
               clipped with an ellipsis.
             </p>

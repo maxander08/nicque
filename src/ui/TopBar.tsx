@@ -130,6 +130,7 @@ const ADDABLE = [
   { type: 'keypad', label: 'Keypad', hint: 'Digits and symbols for a Text Block' },
   { type: 'text', label: 'Text', hint: 'Holds and sends text' },
   { type: 'integer', label: 'Integer', hint: 'Holds and sends a whole number' },
+  { type: 'decimal', label: 'Decimal', hint: 'Holds and sends a decimal number' },
   { type: 'adder', label: 'Adder', hint: 'Operator: adds' },
   { type: 'subtractor', label: 'Subtractor', hint: 'Operator: subtracts' },
   { type: 'multiplier', label: 'Multiplier', hint: 'Operator: multiplies' },

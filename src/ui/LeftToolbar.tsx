@@ -20,6 +20,7 @@ const LIBRARY: LibraryItem[] = [
   { type: 'power', label: 'Power', hint: 'Supplies other blocks' },
   { type: 'text', label: 'Text', hint: 'Holds and sends text' },
   { type: 'integer', label: 'Integer', hint: 'Holds and sends a whole number' },
+  { type: 'decimal', label: 'Decimal', hint: 'Holds and sends a decimal number' },
   { type: 'adder', label: 'Adder', hint: 'Operator: adds' },
   { type: 'subtractor', label: 'Subtractor', hint: 'Operator: subtracts' },
   { type: 'multiplier', label: 'Multiplier', hint: 'Operator: multiplies' },
@@ -47,6 +48,7 @@ function BlockThumb({ type }: { type: ModuleType }) {
       );
     case 'text':
     case 'integer':
+    case 'decimal':
     case 'adder':
     case 'subtractor':
     case 'multiplier':
@@ -54,7 +56,7 @@ function BlockThumb({ type }: { type: ModuleType }) {
       return (
         <svg {...common}>
           <rect x="14" y="5" width="28" height="26" rx="4" fill={body} stroke={edge} />
-          {type !== 'text' && type !== 'integer' && (
+          {type !== 'text' && type !== 'integer' && type !== 'decimal' && (
             <rect x="20" y="7.9" width="3.6" height="3.6" rx="0.8" fill="#ffd21a" />
           )}
           <circle cx="21" cy="19" r="3" fill="none" stroke={dot} strokeWidth="1.1" />

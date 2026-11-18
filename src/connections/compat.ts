@@ -6,15 +6,21 @@ import type { ConnectionRecord, DataKind, ModuleRecord, PortDef, Workspace } fro
  * (`PortDef.kinds`). This module answers the questions "what does this node carry right now?" and "may this
  * output feed that input?" for the whole graph, including operator chains:
  *
- *  - Text Block      sends text.              Integer Block sends integers.
- *  - Subtractor, Divisor   work with integers only (in and out).
+ *  - Text Block      sends text.              Integer Block sends integers.   Decimal Block sends decimals.
+ *  - Subtractor, Divisor   work with integers and decimals (in and out). Integers only give an integer, as before;
+ *                          as soon as one operand is a decimal the result is a decimal.
  *  - Adder, Multiplier     also work with text. Their result is text as soon as one operand is text.
- *  - A Multiplier can multiply text by an integer, never text by text.
- *  - Display Block   shows text and integers.
+ *  - A Multiplier can multiply text by an integer, never text by text and never text by a decimal.
+ *  - Display Block   shows text, integers and decimals.
  */
 
-const kindList = (ks: DataKind[]) =>
-  ks.length === 2 ? 'integers and text' : ks[0] === 'integer' ? 'integers only' : 'text only';
+const KIND_NAMES: Record<DataKind, string> = { integer: 'integers', decimal: 'decimals', text: 'text' };
+const KIND_ORDER: DataKind[] = ['integer', 'decimal', 'text'];
+const kindList = (ks: DataKind[]) => {
+  const names = KIND_ORDER.filter((k) => ks.includes(k)).map((k) => KIND_NAMES[k]);
+  if (names.length === 1) return `${names[0]} only`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+};
 
 const dataLinks = (conns: ConnectionRecord[]) => conns.filter((c) => c.type === 'text');
 
@@ -26,16 +32,21 @@ export function outputKind(
 ): DataKind {
   if (module.type === 'text') return 'text';
   if (module.type === 'integer') return 'integer';
-  if (!isOperatorType(module.type) || !TEXT_OPERATORS.includes(module.type)) return 'integer';
+  if (module.type === 'decimal') return 'decimal';
+  if (!isOperatorType(module.type)) return 'integer';
   if (seen.has(module.id)) return 'integer';
   seen.add(module.id);
-  // Adder / Multiplier: text in, text out
+  // Adder / Multiplier: text in, text out. Any operator: a decimal operand makes the result a decimal.
+  let result: DataKind = 'integer';
   for (const c of dataLinks(ws.connections)) {
     if (c.to.moduleId !== module.id) continue;
     const src = ws.modules.find((m) => m.id === c.from.moduleId);
-    if (src && outputKind(ws, src, new Set(seen)) === 'text') return 'text';
+    if (!src) continue;
+    const kind = outputKind(ws, src, new Set(seen));
+    if (kind === 'text' && TEXT_OPERATORS.includes(module.type)) return 'text';
+    if (kind === 'decimal') result = 'decimal';
   }
-  return 'integer';
+  return result;
 }
 
 /** The kinds a data node can handle (empty for nodes that are not data nodes). */
@@ -72,7 +83,7 @@ function linkProblem(ws: Pick<Workspace, 'modules' | 'connections'>, c: Connecti
   const kind = outputKind(ws, from);
   const accepted = nodeKinds(inPort);
   if (!accepted.includes(kind)) {
-    const what = kind === 'integer' ? 'an integer' : 'text';
+    const what = kind === 'integer' ? 'an integer' : kind === 'decimal' ? 'a decimal' : 'text';
     return `${from.name} sends ${what}, but ${to.name} works with ${kindList(accepted)}.`;
   }
   if (to.type === 'multiplier') {
@@ -82,6 +93,15 @@ function linkProblem(ws: Pick<Workspace, 'modules' | 'connections'>, c: Connecti
       return !!src && outputKind(ws, src) === 'text';
     }).length;
     if (textOperands > 1) return `${to.name} can multiply text by an integer, but not text by text.`;
+    const kinds = dataLinks(ws.connections)
+      .filter((l) => l.to.moduleId === to.id)
+      .map((l) => {
+        const src = ws.modules.find((m) => m.id === l.from.moduleId);
+        return src ? outputKind(ws, src) : null;
+      });
+    if (kinds.includes('text') && kinds.includes('decimal')) {
+      return `${to.name} can repeat text a whole number of times, so it cannot multiply text by a decimal.`;
+    }
   }
   return null;
 }

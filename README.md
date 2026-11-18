@@ -1,6 +1,6 @@
 # Nicque — modular hardware simulator
 
-A real-time 3D, hardware-first visual programming prototype. Six physical modules (Power, Text, Integer, Display, Keyboard, Keypad) sit on an endless plane with selectable lighting atmospheres. You move them, link their connectors, switch power and edit values; a deterministic runtime decides what each block does.
+A real-time 3D, hardware-first visual programming prototype. Physical modules (Power, Text, Integer, Decimal, operators, Display, Keyboard, Keypad) sit on an endless plane with selectable lighting atmospheres. You move them, link their connectors, switch power and edit values; a deterministic runtime decides what each block does.
 
 ## Commands
 
@@ -46,6 +46,14 @@ Adder (`+`), Subtractor (`−`), Multiplier (`×`) and Divisor (`÷`) Blocks sha
 - Operators evaluate depth-first across chained operator graphs in `evaluateWorkspace()`, publishing their live result out of `data-out`.
 - Full graph compatibility (`src/connections/compat.ts`) prevents cycles and rejects links that would turn an operator's downstream output into a type its existing consumers cannot accept.
 - Powered Display Blocks without active text content show a subtle `"Idle"` state.
+
+## Decimal Block
+
+The **Decimal Block** works exactly like the Integer Block (same housing, Clear / Undo buttons, power input, two key inputs for a Keyboard / Keypad, and two east output pins `data-out` / `data-out-2`; gray **DEC** box). It holds an arbitrary-precision decimal (a `BigDecimal`: a `BigInt` unscaled value plus a scale, `src/modules/bigDecimal.ts`) with **no digit limit**, only memory. Only digits, one `.` and a leading `-` are accepted, and it sends nothing until the number is complete (`5.` or `-` are not yet numbers).
+
+- Display Blocks show decimals; every operator accepts them. Integer-only maths is unchanged (integer ÷ integer still truncates).
+- If an operator receives at least one decimal (and no text) the calculation is done with BigDecimals: `+`, `−`, `×` are exact and keep the scale (`2.5 + 2.5 = 5.0`); `÷` is exact when the quotient terminates and is otherwise truncated after 100 significant digits (`1 ÷ 3 = 0.333…`). Division by zero reports unavailable.
+- The Adder joins text and decimals (`"pi=" + 3.14`); the Multiplier refuses `text × decimal` (text is repeated a whole number of times only).
 
 ## Layout and topology
 

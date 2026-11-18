@@ -1,5 +1,6 @@
 import { outputKind } from '@/connections/compat';
 import { validateConnection } from '@/connections/validate';
+import { decimalOp, isDecimal } from '@/modules/bigDecimal';
 import { OPERATORS, isInteger, isOperatorType } from '@/modules/definitions';
 import type {
   ConnectionRecord,
@@ -88,6 +89,8 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     if (m.type === 'text' && powered.get(m.id)) textOut.set(m.id, m.config.value);
     // an Integer Block only sends a complete whole number (a lone minus sign is not one yet)
     if (m.type === 'integer' && powered.get(m.id)) textOut.set(m.id, isInteger(m.config.value) ? m.config.value : '');
+    // a Decimal Block works the same way: it only sends a complete decimal number ("5." or a lone minus is not one yet)
+    if (m.type === 'decimal' && powered.get(m.id)) textOut.set(m.id, isDecimal(m.config.value) ? m.config.value : '');
   }
 
   // Operator blocks (Adder, Subtractor, Multiplier, Divisor): evaluate the two operand pins (`data-in`, `data-in-2`)
@@ -113,7 +116,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     try {
       if (powered.get(m.id) !== true) return;
       const opName = OPERATORS[m.type as OperatorType].label;
-      const operands: { value: string; kind: 'text' | 'integer'; from: string }[] = [];
+      const operands: { value: string; kind: 'text' | 'integer' | 'decimal'; from: string }[] = [];
       for (const portId of ['data-in', 'data-in-2']) {
         const link = dataLinksValid.find((c) => c.to.moduleId === m.id && c.to.portId === portId);
         if (!link) {
@@ -134,15 +137,32 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
           opReason.set(m.id, `${o.from} does not hold a complete whole number yet.`);
           return;
         }
+        if (o.kind === 'decimal' && !isDecimal(o.value)) {
+          opReason.set(m.id, `${o.from} does not hold a complete decimal number yet.`);
+          return;
+        }
       }
+      // two numbers of which at least one is a decimal are calculated as BigDecimals (any number of digits)
+      const useDecimal = a.kind !== 'text' && b.kind !== 'text' && (a.kind === 'decimal' || b.kind === 'decimal');
       let result: string | undefined;
-      if (m.type === 'adder') {
+      if (useDecimal) {
+        if (m.type === 'adder') result = decimalOp.add(a.value, b.value);
+        else if (m.type === 'subtractor') result = decimalOp.sub(a.value, b.value);
+        else if (m.type === 'multiplier') result = decimalOp.mul(a.value, b.value);
+        else {
+          const q = decimalOp.div(a.value, b.value);
+          if (q === null) opReason.set(m.id, 'Cannot divide by zero.');
+          else result = q;
+        }
+      } else if (m.type === 'adder') {
         result = a.kind === 'integer' && b.kind === 'integer' ? (BigInt(a.value) + BigInt(b.value)).toString() : a.value + b.value;
       } else if (m.type === 'subtractor') {
         result = (BigInt(a.value) - BigInt(b.value)).toString();
       } else if (m.type === 'multiplier') {
         if (a.kind === 'integer' && b.kind === 'integer') {
           result = (BigInt(a.value) * BigInt(b.value)).toString();
+        } else if (a.kind === 'decimal' || b.kind === 'decimal') {
+          opReason.set(m.id, 'Text can only be repeated a whole number of times, not a decimal number of times.');
         } else {
           const text = a.kind === 'text' ? a : b;
           const count = BigInt((a.kind === 'text' ? b : a).value);
@@ -195,7 +215,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   for (const c of valid) {
     if (c.type !== 'keys') continue;
     const dst = byId.get(c.to.moduleId);
-    const typable = dst?.type === 'text' || dst?.type === 'integer';
+    const typable = dst?.type === 'text' || dst?.type === 'integer' || dst?.type === 'decimal';
     const active = typable && powered.get(c.from.moduleId) === true && powered.get(c.to.moduleId) === true;
     let reason = 'Typing into the Text Block';
     if (powered.get(c.from.moduleId) !== true) {
@@ -251,8 +271,8 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen: isPowered ? { kind: 'empty' } : { kind: 'off' },
       };
-    } else if (m.type === 'text' || m.type === 'integer') {
-      const noun = m.type === 'integer' ? 'number' : 'text';
+    } else if (m.type === 'text' || m.type === 'integer' || m.type === 'decimal') {
+      const noun = m.type === 'text' ? 'text' : 'number';
       const typing = typingInto.has(m.id);
       const screen: ScreenContent = !isPowered
         ? { kind: 'off' }

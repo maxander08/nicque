@@ -6,11 +6,11 @@
  */
 
 export type OperatorType = 'adder' | 'subtractor' | 'multiplier' | 'divisor';
-export type ModuleType = 'power' | 'text' | 'integer' | OperatorType | 'display' | 'keyboard' | 'keypad';
+export type ModuleType = 'power' | 'text' | 'integer' | 'decimal' | OperatorType | 'display' | 'keyboard' | 'keypad';
 export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
-/** What a text-type (data) connector carries: free text or a whole number. */
-export type DataKind = 'text' | 'integer';
+/** What a text-type (data) connector carries: free text, a whole number or an arbitrary-precision decimal. */
+export type DataKind = 'text' | 'integer' | 'decimal';
 
 export interface Vec2 {
   x: number;
@@ -25,6 +25,10 @@ export interface TextConfig {
 }
 /** The Integer Block looks like a Text Block but only holds a whole number: an optional minus sign and digits. */
 export interface IntegerConfig {
+  value: string;
+}
+/** The Decimal Block works like the Integer Block but holds an arbitrary-precision decimal (a BigDecimal, any digit count). */
+export interface DecimalConfig {
   value: string;
 }
 /**
@@ -69,6 +73,7 @@ interface ModuleBase {
 export type PowerModule = ModuleBase & { type: 'power'; config: PowerConfig };
 export type TextModule = ModuleBase & { type: 'text'; config: TextConfig };
 export type IntegerModule = ModuleBase & { type: 'integer'; config: IntegerConfig };
+export type DecimalModule = ModuleBase & { type: 'decimal'; config: DecimalConfig };
 export type AdderModule = ModuleBase & { type: 'adder'; config: OperatorConfig };
 export type SubtractorModule = ModuleBase & { type: 'subtractor'; config: OperatorConfig };
 export type MultiplierModule = ModuleBase & { type: 'multiplier'; config: OperatorConfig };
@@ -81,6 +86,7 @@ export type ModuleRecord =
   | PowerModule
   | TextModule
   | IntegerModule
+  | DecimalModule
   | OperatorModule
   | DisplayModule
   | KeyboardModule

@@ -12,7 +12,7 @@ export function feedSignature(ws: Workspace, displayId: string): string {
     .filter((c) => c.type === 'text' && c.to.moduleId === displayId)
     .map((c) => {
       const src = ws.modules.find((m) => m.id === c.from.moduleId);
-      const value = src && (src.type === 'text' || src.type === 'integer') ? src.config.value : '';
+      const value = src && (src.type === 'text' || src.type === 'integer' || src.type === 'decimal') ? src.config.value : '';
       return `${c.id}=${value}`;
     })
     .sort()

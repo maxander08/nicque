@@ -3,6 +3,7 @@ import { findFreePortPair } from '@/connections/suggest';
 import { validateConnection } from '@/connections/validate';
 import { resolveDrop } from '@/interactions/drop';
 import { spawnPlacement } from '@/interactions/spawn';
+import { sanitizeDecimal } from '@/modules/bigDecimal';
 import {
   MAX_TEXT_LENGTH,
   createModule,
@@ -304,9 +305,15 @@ export const useStore = create<Store>((set, get) => {
     setText: (id, value) => {
       const ws = get().workspace;
       const cur = ws.modules.find((m) => m.id === id);
-      if (!cur || (cur.type !== 'text' && cur.type !== 'integer')) return;
-      // the Integer Block only ever holds a whole number: anything else is dropped
-      const v = cur.type === 'integer' ? sanitizeInteger(value) : value.slice(0, MAX_TEXT_LENGTH);
+      if (!cur || (cur.type !== 'text' && cur.type !== 'integer' && cur.type !== 'decimal')) return;
+      // the Integer Block only ever holds a whole number: anything else is dropped. The Decimal Block only holds a
+      // decimal number, with no limit on its digits.
+      const v =
+        cur.type === 'integer'
+          ? sanitizeInteger(value)
+          : cur.type === 'decimal'
+            ? sanitizeDecimal(value)
+            : value.slice(0, MAX_TEXT_LENGTH);
       if (cur.config.value === v) return;
       // remember the value this change replaces, so Undo can bring it back
       const past = get().valueHistory[id] ?? [];
@@ -318,7 +325,7 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const cur = s.workspace.modules.find((m) => m.id === id);
       if (!cur) return;
-      if (cur.type === 'text' || cur.type === 'integer') {
+      if (cur.type === 'text' || cur.type === 'integer' || cur.type === 'decimal') {
         const past = s.valueHistory[id] ?? [];
         if (past.length === 0) {
           s.notify('Nothing to undo', 'info');
@@ -327,7 +334,14 @@ export const useStore = create<Store>((set, get) => {
         const previous = past[past.length - 1];
         set({ valueHistory: { ...s.valueHistory, [id]: past.slice(0, -1) } });
         commit(updateModule(s.workspace, id, (m) => ({ ...m, config: { value: previous } }) as ModuleRecord), true);
-        s.notify(cur.type === 'integer' ? 'Undid the last integer change' : 'Undid the last text change', 'info');
+        s.notify(
+          cur.type === 'integer'
+            ? 'Undid the last integer change'
+            : cur.type === 'decimal'
+              ? 'Undid the last decimal change'
+              : 'Undid the last text change',
+          'info',
+        );
       } else if (isOperatorType(cur.type)) {
         // the only thing an operator can undo is its own clear button
         if ((cur.config as { cleared?: boolean }).cleared !== true) {
@@ -435,12 +449,11 @@ export const useStore = create<Store>((set, get) => {
         );
         return;
       }
-      if (m.type === 'text' || m.type === 'integer') {
-        const isInt = m.type === 'integer';
+      if (m.type === 'text' || m.type === 'integer' || m.type === 'decimal') {
         if (action === 'clear') {
-          // X on a Text / Integer Block empties the block itself, so every display it feeds goes blank too
+          // X on a Text / Integer / Decimal Block empties the block itself, so every display it feeds goes blank too
           s.setText(moduleId, '');
-          s.notify(isInt ? 'Integer cleared' : 'Text cleared', 'info');
+          s.notify(m.type === 'integer' ? 'Integer cleared' : m.type === 'decimal' ? 'Decimal cleared' : 'Text cleared', 'info');
         } else if (action === 'undo') {
           s.undoBlock(moduleId);
         }
@@ -477,7 +490,10 @@ export const useStore = create<Store>((set, get) => {
       const feeds = s.workspace.connections.filter((c) => c.type === 'text' && c.to.moduleId === displayId);
       const sources = feeds
         .map((c) => s.workspace.modules.find((m) => m.id === c.from.moduleId))
-        .filter((m): m is Extract<ModuleRecord, { type: 'text' | 'integer' }> => !!m && (m.type === 'text' || m.type === 'integer'));
+        .filter(
+          (m): m is Extract<ModuleRecord, { type: 'text' | 'integer' | 'decimal' }> =>
+            !!m && (m.type === 'text' || m.type === 'integer' || m.type === 'decimal'),
+        );
       if (sources.length === 0) {
         s.notify('Nothing to clear. Link a Text Block to this display first.', 'warn');
         return;
@@ -627,8 +643,9 @@ export const useStore = create<Store>((set, get) => {
       for (const c of targets) {
         const t = get().workspace.modules.find((m) => m.id === c.to.moduleId);
         // an Integer Block drops anything that is not part of a whole number (setText sanitises it)
-        if (t && (t.type === 'text' || t.type === 'integer')) {
-          get().setText(t.id, applyEdit(t.config.value, edit, MAX_TEXT_LENGTH));
+        if (t && (t.type === 'text' || t.type === 'integer' || t.type === 'decimal')) {
+          // a Decimal Block has no limit on its digits (only memory)
+          get().setText(t.id, applyEdit(t.config.value, edit, t.type === 'decimal' ? Infinity : MAX_TEXT_LENGTH));
         }
       }
       return true;
