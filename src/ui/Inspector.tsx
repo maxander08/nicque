@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { decimalOp, isDecimal } from '@/modules/bigDecimal';
-import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isInteger, isOperatorType } from '@/modules/definitions';
+import { KEY_PRESSURES, MAX_INTEGER_DIGITS, MAX_TEXT_LENGTH, MODULE_DEFINITIONS, isBoolean, isGateType, isInteger, isOperatorType } from '@/modules/definitions';
 import { useLogicWorkspace } from '@/state/logicWorkspace';
 import { useStore } from '@/state/store';
-import { OPERATORS, TEXT_OPERATORS } from '@/modules/definitions';
+import { GATES, OPERATORS, TEXT_OPERATORS } from '@/modules/definitions';
 import { describeNode } from '@/connections/compat';
 import { IconButton, ScrollArea, Segmented, StateMark, Stepper, Switch, TextArea, panelClass, stateLabel } from './primitives';
 import { cn } from '@/utils/cn';
@@ -125,6 +125,53 @@ export function Inspector() {
               Its Clear button blanks the result stored in this operator only (the blocks feeding it keep their
               values) and Undo brings it back.
             </p>
+          </div>
+        )}
+
+        {isGateType(module.type) && (
+          <div>
+            <div className="mb-1.5 flex items-center gap-2">
+              <span
+                className="inline-flex h-4 min-w-4 items-center justify-center rounded-[3px] bg-[#2f8bff] px-1 text-[9px] font-bold leading-none text-white"
+                aria-hidden
+              >
+                {GATES[module.type].symbol}
+              </span>
+              <span className="text-[13px] font-medium">{GATES[module.type].badge} logic gate</span>
+            </div>
+            <p className="text-xs leading-snug text-neutral-400">
+              The blue box next to the power LED marks this as the {GATES[module.type].badge} gate.{' '}
+              {GATES[module.type].hint}. It works with Boolean Blocks and other gates (True = 1, False = 0) and has{' '}
+              {GATES[module.type].inputs === 1 ? 'one input' : 'two inputs'}. Its Clear button blanks the result stored in
+              this gate only (the blocks feeding it keep their values) and Undo brings it back.
+            </p>
+          </div>
+        )}
+
+        {module.type === 'boolean' && (
+          <div>
+            <div className="mb-1.5 flex items-baseline justify-between">
+              <span className="text-[13px] font-medium">Boolean</span>
+              <span className="text-xs text-neutral-400">True = 1 · False = 0</span>
+            </div>
+            <Segmented
+              label="Boolean value"
+              value={isBoolean(module.config.value) ? module.config.value : ''}
+              onChange={(v) => setText(module.id, v)}
+              options={[
+                { value: '1', label: 'True (1)' },
+                { value: '0', label: 'False (0)' },
+              ]}
+            />
+            <p className="mt-1.5 text-xs leading-snug text-neutral-400">
+              Like the Integer Block it has no screen of its own: link its output to a Display Block to see 1 or 0, or to
+              a logic gate. With a Keyboard or Keypad linked, type 1 / 0 (or T / F).
+            </p>
+            {!rt.powered && (
+              <p className="mt-1.5 text-xs text-amber-200/90">
+                The block is unpowered. The value is kept and will be sent once power returns.
+              </p>
+            )}
           </div>
         )}
 

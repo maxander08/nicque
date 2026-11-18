@@ -21,10 +21,18 @@ const LIBRARY: LibraryItem[] = [
   { type: 'text', label: 'Text', hint: 'Holds and sends text' },
   { type: 'integer', label: 'Integer', hint: 'Holds and sends a whole number' },
   { type: 'decimal', label: 'Decimal', hint: 'Holds and sends a decimal number' },
+  { type: 'boolean', label: 'Boolean', hint: 'Holds and sends True (1) or False (0)' },
   { type: 'adder', label: 'Adder', hint: 'Operator: adds' },
   { type: 'subtractor', label: 'Subtractor', hint: 'Operator: subtracts' },
   { type: 'multiplier', label: 'Multiplier', hint: 'Operator: multiplies' },
   { type: 'divisor', label: 'Divisor', hint: 'Operator: divides' },
+  { type: 'not', label: 'NOT', hint: 'Logic gate: inverts' },
+  { type: 'or', label: 'OR', hint: 'Logic gate: any input true' },
+  { type: 'and', label: 'AND', hint: 'Logic gate: all inputs true' },
+  { type: 'nor', label: 'NOR', hint: 'Logic gate: no input true' },
+  { type: 'nand', label: 'NAND', hint: 'Logic gate: not all inputs true' },
+  { type: 'xor', label: 'XOR', hint: 'Logic gate: inputs differ' },
+  { type: 'xnor', label: 'XNOR', hint: 'Logic gate: inputs match' },
   { type: 'display', label: 'Display', hint: 'Shows text on LEDs' },
   { type: 'keyboard', label: 'Keyboard', hint: 'Types into a Text Block' },
   { type: 'keypad', label: 'Keypad', hint: 'Digits and symbols' },
@@ -49,6 +57,14 @@ function BlockThumb({ type }: { type: ModuleType }) {
     case 'text':
     case 'integer':
     case 'decimal':
+    case 'boolean':
+    case 'not':
+    case 'or':
+    case 'and':
+    case 'nor':
+    case 'nand':
+    case 'xor':
+    case 'xnor':
     case 'adder':
     case 'subtractor':
     case 'multiplier':
@@ -56,8 +72,15 @@ function BlockThumb({ type }: { type: ModuleType }) {
       return (
         <svg {...common}>
           <rect x="14" y="5" width="28" height="26" rx="4" fill={body} stroke={edge} />
-          {type !== 'text' && type !== 'integer' && type !== 'decimal' && (
-            <rect x="20" y="7.9" width="3.6" height="3.6" rx="0.8" fill="#ffd21a" />
+          {type !== 'text' && type !== 'integer' && type !== 'decimal' && type !== 'boolean' && (
+            <rect
+              x="20"
+              y="7.9"
+              width="3.6"
+              height="3.6"
+              rx="0.8"
+              fill={['adder', 'subtractor', 'multiplier', 'divisor'].includes(type) ? '#ffd21a' : '#2f8bff'}
+            />
           )}
           <circle cx="21" cy="19" r="3" fill="none" stroke={dot} strokeWidth="1.1" />
           <circle cx="28" cy="19" r="3" fill="none" stroke={dot} strokeWidth="1.1" />

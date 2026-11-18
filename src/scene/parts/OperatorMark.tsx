@@ -16,6 +16,8 @@ const CORNER = 0.018;
 export const OPERATOR_YELLOW = '#ffd21a';
 /** Gray of the box on the Integer and Text Blocks (same square as the operator box, just gray). */
 export const TYPE_GRAY = '#9a9da6';
+/** Blue of the box on the logic gate blocks (same square as the operator box, just blue). */
+export const GATE_BLUE = '#2f8bff';
 
 /** Extent of the operator symbol printed next to the box: a touch smaller than the box so the two read as a pair. */
 export const OPERATOR_SYMBOL_SIZE = OPERATOR_BOX_SIZE * 0.86;
@@ -110,7 +112,7 @@ interface Props {
 }
 
 /** Width/height of the plane the label is painted on (transparent, so only the glyphs show). */
-const LABEL_W = 0.3;
+const LABEL_W = 0.4;
 const LABEL_H = 0.12;
 /** Font size of the label: its capitals come out about as tall as the operator symbols. */
 const LABEL_FONT = 0.115;

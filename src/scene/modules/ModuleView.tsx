@@ -9,6 +9,8 @@ import { useDisposable } from '../hooks';
 import { CORNER_RADIUS } from '../parts/Housing';
 import { PortView } from '../parts/PortView';
 import { AdderBlockView, DivisorBlockView, MultiplierBlockView, SubtractorBlockView } from './OperatorBlockViews';
+import { BooleanBlockView } from './BooleanBlockView';
+import { AndGateView, NandGateView, NorGateView, NotGateView, OrGateView, XnorGateView, XorGateView } from './GateBlockViews';
 import { DecimalBlockView } from './DecimalBlockView';
 import { DisplayBlockView } from './DisplayBlockView';
 import { IntegerBlockView } from './IntegerBlockView';
@@ -23,10 +25,18 @@ const BODIES: Record<ModuleType, ComponentType<{ moduleId: string }>> = {
   text: TextBlockView,
   integer: IntegerBlockView,
   decimal: DecimalBlockView,
+  boolean: BooleanBlockView,
   adder: AdderBlockView,
   subtractor: SubtractorBlockView,
   multiplier: MultiplierBlockView,
   divisor: DivisorBlockView,
+  not: NotGateView,
+  or: OrGateView,
+  and: AndGateView,
+  nor: NorGateView,
+  nand: NandGateView,
+  xor: XorGateView,
+  xnor: XnorGateView,
   display: DisplayBlockView,
   keyboard: KeyboardBlockView,
   keypad: KeypadBlockView,

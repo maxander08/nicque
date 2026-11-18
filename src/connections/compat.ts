@@ -1,4 +1,4 @@
-import { MODULE_DEFINITIONS, TEXT_OPERATORS, getPortDef, isOperatorType } from '@/modules/definitions';
+import { MODULE_DEFINITIONS, TEXT_OPERATORS, getPortDef, isGateType, isOperatorType } from '@/modules/definitions';
 import type { ConnectionRecord, DataKind, ModuleRecord, PortDef, Workspace } from '@/types';
 
 /**
@@ -11,11 +11,12 @@ import type { ConnectionRecord, DataKind, ModuleRecord, PortDef, Workspace } fro
  *                          as soon as one operand is a decimal the result is a decimal.
  *  - Adder, Multiplier     also work with text. Their result is text as soon as one operand is text.
  *  - A Multiplier can multiply text by an integer, never text by text and never text by a decimal.
- *  - Display Block   shows text, integers and decimals.
+ *  - Boolean Block   sends a Boolean (True = 1, False = 0). The logic gates take and give Booleans only.
+ *                    Operators read a Boolean as the integer 1 or 0. Display Block shows text, integers, decimals and Booleans.
  */
 
-const KIND_NAMES: Record<DataKind, string> = { integer: 'integers', decimal: 'decimals', text: 'text' };
-const KIND_ORDER: DataKind[] = ['integer', 'decimal', 'text'];
+const KIND_NAMES: Record<DataKind, string> = { integer: 'integers', decimal: 'decimals', text: 'text', boolean: 'Booleans' };
+const KIND_ORDER: DataKind[] = ['boolean', 'integer', 'decimal', 'text'];
 const kindList = (ks: DataKind[]) => {
   const names = KIND_ORDER.filter((k) => ks.includes(k)).map((k) => KIND_NAMES[k]);
   if (names.length === 1) return `${names[0]} only`;
@@ -33,6 +34,7 @@ export function outputKind(
   if (module.type === 'text') return 'text';
   if (module.type === 'integer') return 'integer';
   if (module.type === 'decimal') return 'decimal';
+  if (module.type === 'boolean' || isGateType(module.type)) return 'boolean';
   if (!isOperatorType(module.type)) return 'integer';
   if (seen.has(module.id)) return 'integer';
   seen.add(module.id);
@@ -83,7 +85,8 @@ function linkProblem(ws: Pick<Workspace, 'modules' | 'connections'>, c: Connecti
   const kind = outputKind(ws, from);
   const accepted = nodeKinds(inPort);
   if (!accepted.includes(kind)) {
-    const what = kind === 'integer' ? 'an integer' : kind === 'decimal' ? 'a decimal' : 'text';
+    const what =
+      kind === 'integer' ? 'an integer' : kind === 'decimal' ? 'a decimal' : kind === 'boolean' ? 'a Boolean' : 'text';
     return `${from.name} sends ${what}, but ${to.name} works with ${kindList(accepted)}.`;
   }
   if (to.type === 'multiplier') {

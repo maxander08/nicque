@@ -1,4 +1,6 @@
 import type {
+  BooleanConfig,
+  GateType,
   DecimalConfig,
   DisplayConfig,
   IntegerConfig,
@@ -27,6 +29,8 @@ export const MAX_TEXT_LENGTH = 2000;
 export const DEFAULT_TEXT = 'Hello, Nicque';
 export const DEFAULT_INTEGER = '42';
 export const DEFAULT_DECIMAL = '3.14';
+/** A new Boolean Block starts out holding True (1). */
+export const DEFAULT_BOOLEAN = '1';
 /** Longest integer an Integer Block holds (digits only, the minus sign is extra). */
 export const MAX_INTEGER_DIGITS = 18;
 
@@ -40,6 +44,25 @@ export function sanitizeInteger(raw: string): string {
   // no leading zeros: typing 5 after a 0 gives 5, not 05 (a single 0 is kept)
   const digits = raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, MAX_INTEGER_DIGITS);
   return (negative ? '-' : '') + digits;
+}
+
+/** True when `value` is a complete Boolean: "1" (True) or "0" (False). */
+export const isBoolean = (value: string) => value === '0' || value === '1';
+
+/**
+ * Reduces any string to a valid Boolean entry: "" (nothing yet), "1" (True) or "0" (False). The last character wins,
+ * so typing 1, 0, t or f flips the value; "true" / "false" are understood as well. Anything else is dropped.
+ */
+export function sanitizeBoolean(raw: string): string {
+  const v = raw.trim().toLowerCase();
+  if (v === 'true') return '1';
+  if (v === 'false') return '0';
+  for (let i = v.length - 1; i >= 0; i--) {
+    const c = v[i];
+    if (c === '1' || c === 't') return '1';
+    if (c === '0' || c === 'f') return '0';
+  }
+  return '';
 }
 
 /** True when `value` is a complete integer (no lone minus sign, nothing else). */
@@ -258,6 +281,22 @@ const decimal: ModuleDefinition = {
   }),
 };
 
+/**
+ * The Boolean Block is the Integer Block for a single True / False value (True = 1, False = 0). Same size, buttons
+ * and connectors (power input, two key inputs, two data outputs); only the value it holds differs.
+ */
+const boolean: ModuleDefinition = {
+  type: 'boolean',
+  label: 'Boolean Block',
+  width: TEXT_W,
+  depth: TEXT_D,
+  ports: textPorts('boolean', 2),
+  defaultConfig: (): BooleanConfig => ({ value: DEFAULT_BOOLEAN }),
+  sanitizeConfig: (raw): BooleanConfig => ({
+    value: isObj(raw) && typeof raw.value === 'string' ? sanitizeBoolean(raw.value) : DEFAULT_BOOLEAN,
+  }),
+};
+
 /** The four operator types, with the name printed on the block and the symbol shown in the UI. */
 export const OPERATORS: Record<OperatorType, { label: string; badge: string; symbol: string; hint: string }> = {
   adder: { label: 'Adder Block', badge: 'Adder', symbol: '+', hint: 'Operator: adds' },
@@ -274,7 +313,7 @@ export const isOperatorType = (t: unknown): t is OperatorType => typeof t === 's
 export const TEXT_OPERATORS: OperatorType[] = ['adder', 'multiplier'];
 /** Data kinds an operator's nodes work with. Only the Adder and Multiplier also work with text. */
 export const operatorKinds = (type: OperatorType): DataKind[] =>
-  TEXT_OPERATORS.includes(type) ? ['integer', 'decimal', 'text'] : ['integer', 'decimal'];
+  TEXT_OPERATORS.includes(type) ? ['integer', 'decimal', 'text', 'boolean'] : ['integer', 'decimal', 'boolean'];
 
 /**
  * An operator block has the footprint, header, buttons and power connector of a Text Block (it looks the same);
@@ -322,10 +361,92 @@ const operatorDef = (type: OperatorType): ModuleDefinition => {
   };
 };
 
+/** The seven logic gates: the name printed on the block, the short label shown in the blue box and the inputs used. */
+export const GATES: Record<GateType, { label: string; badge: string; symbol: string; hint: string; inputs: 1 | 2 }> = {
+  not: { label: 'NOT Gate', badge: 'NOT', symbol: 'NOT', hint: 'Logic gate: inverts', inputs: 1 },
+  or: { label: 'OR Gate', badge: 'OR', symbol: 'OR', hint: 'Logic gate: true if any input is true', inputs: 2 },
+  and: { label: 'AND Gate', badge: 'AND', symbol: 'AND', hint: 'Logic gate: true if all inputs are true', inputs: 2 },
+  nor: { label: 'NOR Gate', badge: 'NOR', symbol: 'NOR', hint: 'Logic gate: true if no input is true', inputs: 2 },
+  nand: { label: 'NAND Gate', badge: 'NAND', symbol: 'NAND', hint: 'Logic gate: false only if all inputs are true', inputs: 2 },
+  xor: { label: 'XOR Gate', badge: 'XOR', symbol: 'XOR', hint: 'Logic gate: true if the inputs differ', inputs: 2 },
+  xnor: { label: 'XNOR Gate', badge: 'XNOR', symbol: 'XNOR', hint: 'Logic gate: true if the inputs match', inputs: 2 },
+};
+export const GATE_TYPES = Object.keys(GATES) as GateType[];
+
+/** True for the logic gate blocks (the blocks with the blue box). */
+export const isGateType = (t: unknown): t is GateType => typeof t === 'string' && t in GATES;
+
+/** True for every block that computes a result from its inputs: the operators and the logic gates. */
+export const isComputeType = (t: unknown): t is OperatorType | GateType => isOperatorType(t) || isGateType(t);
+
+/** Evaluates one logic gate on its (one or two) Boolean inputs. */
+export function evalGate(type: GateType, a: boolean, b = false): boolean {
+  switch (type) {
+    case 'not':
+      return !a;
+    case 'or':
+      return a || b;
+    case 'and':
+      return a && b;
+    case 'nor':
+      return !(a || b);
+    case 'nand':
+      return !(a && b);
+    case 'xor':
+      return a !== b;
+    case 'xnor':
+    default:
+      return a === b;
+  }
+}
+
+/**
+ * A logic gate has the footprint, header, buttons and power connector of a Text Block. Its nodes are a power input,
+ * its Boolean input(s) on the west edge (one for NOT, two for every other gate) and two result outputs on the east
+ * edge, laid out exactly like the operator blocks'.
+ */
+const gateDef = (type: GateType): ModuleDefinition => {
+  const base = textPorts('boolean', 2);
+  const inputs: PortDef[] = [
+    {
+      id: 'data-in',
+      label: GATES[type].inputs === 1 ? 'Input (west)' : 'Input A (west 1)',
+      type: 'text',
+      direction: 'in',
+      local: { x: -SQUARE / 2, z: TEXT_DATA_Z },
+      normal: { x: -1, z: 0 },
+      capacity: 1,
+      kinds: ['boolean'],
+    },
+  ];
+  if (GATES[type].inputs === 2) {
+    inputs.push({
+      id: 'data-in-2',
+      label: 'Input B (west 2)',
+      type: 'text',
+      direction: 'in',
+      local: { x: -SQUARE / 2, z: TEXT_DATA_Z + OPERAND_PITCH },
+      normal: { x: -1, z: 0 },
+      capacity: 1,
+      kinds: ['boolean'],
+    });
+  }
+  return {
+    type,
+    label: GATES[type].label,
+    width: TEXT_W,
+    depth: TEXT_D,
+    ports: [base[0], ...inputs, { ...base[1], label: 'Result output (east 1)' }, { ...base[2], label: 'Result output (east 2)' }],
+    defaultConfig: (): OperatorConfig => ({}),
+    sanitizeConfig: (raw): OperatorConfig => (isObj(raw) && raw.cleared === true ? { cleared: true } : {}),
+  };
+};
+
 const adder = operatorDef('adder');
 const subtractor = operatorDef('subtractor');
 const multiplier = operatorDef('multiplier');
 const divisor = operatorDef('divisor');
+const gates = Object.fromEntries(GATE_TYPES.map((t) => [t, gateDef(t)])) as Record<GateType, ModuleDefinition>;
 
 const display: ModuleDefinition = {
   type: 'display',
@@ -350,7 +471,7 @@ const display: ModuleDefinition = {
       local: { x: -SQUARE / 2, z: 0 },
       normal: { x: -1, z: 0 },
       capacity: 1,
-      kinds: ['text', 'integer', 'decimal'],
+      kinds: ['text', 'integer', 'decimal', 'boolean'],
     },
   ],
   defaultConfig: (): DisplayConfig => ({ align: 'center' }),
@@ -441,10 +562,12 @@ export const MODULE_DEFINITIONS: Record<ModuleType, ModuleDefinition> = {
   text,
   integer,
   decimal,
+  boolean,
   adder,
   subtractor,
   multiplier,
   divisor,
+  ...gates,
   display,
   keyboard,
   keypad,

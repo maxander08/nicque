@@ -6,11 +6,23 @@
  */
 
 export type OperatorType = 'adder' | 'subtractor' | 'multiplier' | 'divisor';
-export type ModuleType = 'power' | 'text' | 'integer' | 'decimal' | OperatorType | 'display' | 'keyboard' | 'keypad';
+/** Logic gate blocks: they work on Boolean values (True = 1, False = 0). */
+export type GateType = 'not' | 'or' | 'and' | 'nor' | 'nand' | 'xor' | 'xnor';
+export type ModuleType =
+  | 'power'
+  | 'text'
+  | 'integer'
+  | 'decimal'
+  | 'boolean'
+  | OperatorType
+  | GateType
+  | 'display'
+  | 'keyboard'
+  | 'keypad';
 export type PortType = 'power' | 'text' | 'keys';
 export type PortDirection = 'in' | 'out';
 /** What a text-type (data) connector carries: free text, a whole number or an arbitrary-precision decimal. */
-export type DataKind = 'text' | 'integer' | 'decimal';
+export type DataKind = 'text' | 'integer' | 'decimal' | 'boolean';
 
 export interface Vec2 {
   x: number;
@@ -29,6 +41,10 @@ export interface IntegerConfig {
 }
 /** The Decimal Block works like the Integer Block but holds an arbitrary-precision decimal (a BigDecimal, any digit count). */
 export interface DecimalConfig {
+  value: string;
+}
+/** The Boolean Block holds True or False, stored as "1" (True) or "0" (False); an empty value holds nothing yet. */
+export interface BooleanConfig {
   value: string;
 }
 /**
@@ -78,6 +94,8 @@ export type AdderModule = ModuleBase & { type: 'adder'; config: OperatorConfig }
 export type SubtractorModule = ModuleBase & { type: 'subtractor'; config: OperatorConfig };
 export type MultiplierModule = ModuleBase & { type: 'multiplier'; config: OperatorConfig };
 export type DivisorModule = ModuleBase & { type: 'divisor'; config: OperatorConfig };
+export type BooleanModule = ModuleBase & { type: 'boolean'; config: BooleanConfig };
+export type GateModule = ModuleBase & { type: GateType; config: OperatorConfig };
 export type OperatorModule = AdderModule | SubtractorModule | MultiplierModule | DivisorModule;
 export type DisplayModule = ModuleBase & { type: 'display'; config: DisplayConfig };
 export type KeyboardModule = ModuleBase & { type: 'keyboard'; config: KeyboardConfig };
@@ -87,7 +105,9 @@ export type ModuleRecord =
   | TextModule
   | IntegerModule
   | DecimalModule
+  | BooleanModule
   | OperatorModule
+  | GateModule
   | DisplayModule
   | KeyboardModule
   | KeypadModule;

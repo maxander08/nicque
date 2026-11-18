@@ -47,7 +47,8 @@ export const QUALITY: Record<Quality, QualitySettings> = {
     multisampling: 4,
     dpr: [1, 2],
     ao: 'high',
-    aoHalfRes: false,
+    // half-resolution AO with depth-aware upsampling is visually the same for soft occlusion at a quarter of the cost
+    aoHalfRes: true,
     aoSkipTransparency: false,
   },
   medium: {

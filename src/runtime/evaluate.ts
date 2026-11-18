@@ -1,13 +1,14 @@
 import { outputKind } from '@/connections/compat';
 import { validateConnection } from '@/connections/validate';
 import { decimalOp, isDecimal } from '@/modules/bigDecimal';
-import { OPERATORS, isInteger, isOperatorType } from '@/modules/definitions';
+import { GATES, OPERATORS, evalGate, isBoolean, isComputeType, isGateType, isInteger } from '@/modules/definitions';
 import type {
   ConnectionRecord,
   OperatorType,
   ConnectionRuntime,
   ModuleRecord,
   ModuleRuntime,
+  GateType,
   RuntimeState,
   ScreenContent,
   Workspace,
@@ -91,6 +92,8 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     if (m.type === 'integer' && powered.get(m.id)) textOut.set(m.id, isInteger(m.config.value) ? m.config.value : '');
     // a Decimal Block works the same way: it only sends a complete decimal number ("5." or a lone minus is not one yet)
     if (m.type === 'decimal' && powered.get(m.id)) textOut.set(m.id, isDecimal(m.config.value) ? m.config.value : '');
+    // a Boolean Block sends 1 (True) or 0 (False); empty until it holds one
+    if (m.type === 'boolean' && powered.get(m.id)) textOut.set(m.id, isBoolean(m.config.value) ? m.config.value : '');
   }
 
   // Operator blocks (Adder, Subtractor, Multiplier, Divisor): evaluate the two operand pins (`data-in`, `data-in-2`)
@@ -106,8 +109,36 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
 
   const resolveOutput = (id: string): string | undefined => {
     const m = byId.get(id);
-    if (m && isOperatorType(m.type) && !opDone.has(id)) evaluateOperator(m);
+    if (m && isComputeType(m.type) && !opDone.has(id)) evaluateOperator(m);
     return textOut.get(id);
+  };
+
+  // Logic gates: read the Boolean input pin(s) and publish True (1) or False (0) like any other source.
+  const evaluateGate = (m: ModuleRecord, type: GateType) => {
+    const name = GATES[type].label;
+    const pins = GATES[type].inputs === 1 ? ['data-in'] : ['data-in', 'data-in-2'];
+    const bits: boolean[] = [];
+    for (const portId of pins) {
+      const link = dataLinksValid.find((c) => c.to.moduleId === m.id && c.to.portId === portId);
+      if (!link) {
+        opReason.set(m.id, pins.length === 1 ? `${name} needs its input linked.` : `${name} needs both inputs linked.`);
+        return;
+      }
+      const src = byId.get(link.from.moduleId);
+      const value = src ? resolveOutput(src.id) : undefined;
+      if (!src || value === undefined) {
+        opReason.set(m.id, `${src?.name ?? 'The linked block'} is not operational.`);
+        return;
+      }
+      if (!isBoolean(value)) {
+        opReason.set(m.id, `${src.name} does not hold True or False yet.`);
+        return;
+      }
+      bits.push(value === '1');
+    }
+    const result = evalGate(type, bits[0], bits[1]) ? '1' : '0';
+    opLive.set(m.id, result);
+    textOut.set(m.id, (m.config as { cleared?: boolean }).cleared ? '' : result);
   };
 
   const evaluateOperator = (m: ModuleRecord) => {
@@ -115,6 +146,10 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
     visiting.add(m.id);
     try {
       if (powered.get(m.id) !== true) return;
+      if (isGateType(m.type)) {
+        evaluateGate(m, m.type);
+        return;
+      }
       const opName = OPERATORS[m.type as OperatorType].label;
       const operands: { value: string; kind: 'text' | 'integer' | 'decimal'; from: string }[] = [];
       for (const portId of ['data-in', 'data-in-2']) {
@@ -129,7 +164,9 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
           opReason.set(m.id, `${src?.name ?? 'The linked block'} is not operational.`);
           return;
         }
-        operands.push({ value, kind: outputKind(graph, src), from: src.name });
+        // operators read a Boolean as the integer 1 (True) or 0 (False)
+        const kind = outputKind(graph, src);
+        operands.push({ value, kind: kind === 'boolean' ? 'integer' : kind, from: src.name });
       }
       const [a, b] = operands;
       for (const o of operands) {
@@ -184,7 +221,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
       opDone.add(m.id);
     }
   };
-  for (const m of ws.modules) if (isOperatorType(m.type)) resolveOutput(m.id);
+  for (const m of ws.modules) if (isComputeType(m.type)) resolveOutput(m.id);
 
   /* 5. data transfer --------------------------------------------------- */
   const dataInto = new Map<string, { value: string } | { missing: string }>();
@@ -215,7 +252,7 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
   for (const c of valid) {
     if (c.type !== 'keys') continue;
     const dst = byId.get(c.to.moduleId);
-    const typable = dst?.type === 'text' || dst?.type === 'integer' || dst?.type === 'decimal';
+    const typable = dst?.type === 'text' || dst?.type === 'integer' || dst?.type === 'decimal' || dst?.type === 'boolean';
     const active = typable && powered.get(c.from.moduleId) === true && powered.get(c.to.moduleId) === true;
     let reason = 'Typing into the Text Block';
     if (powered.get(c.from.moduleId) !== true) {
@@ -253,9 +290,9 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
           : 'Switched off. Linked blocks are not operating.',
         screen: { kind: 'off' },
       };
-    } else if (isOperatorType(m.type)) {
-      // Adder, Subtractor, Multiplier and Divisor Blocks: same body as a Text Block, no data of their own yet
-      const name = OPERATORS[m.type as OperatorType].label;
+    } else if (isComputeType(m.type)) {
+      // Adder, Subtractor, Multiplier, Divisor and the logic gates: same body as a Text Block, no data of their own
+      const name = isGateType(m.type) ? GATES[m.type].label : OPERATORS[m.type as OperatorType].label;
       const cleared = (m.config as { cleared?: boolean }).cleared === true;
       rt = {
         id: m.id,
@@ -267,12 +304,12 @@ export function evaluateWorkspace(ws: Workspace): RuntimeState {
         detail: isPowered
           ? cleared
             ? `${name}'s stored result was cleared. The blocks feeding it keep their values; Undo brings the result back, and it also returns as soon as an operand changes.`
-            : `${name} is an operator block. It is powered and ready.`
+            : `${name} is ${isGateType(m.type) ? 'a logic gate' : 'an operator'} block. It is powered and ready.`
           : (unpoweredReason.get(m.id) ?? 'Not powered.'),
         screen: isPowered ? { kind: 'empty' } : { kind: 'off' },
       };
-    } else if (m.type === 'text' || m.type === 'integer' || m.type === 'decimal') {
-      const noun = m.type === 'text' ? 'text' : 'number';
+    } else if (m.type === 'text' || m.type === 'integer' || m.type === 'decimal' || m.type === 'boolean') {
+      const noun = m.type === 'text' ? 'text' : m.type === 'boolean' ? 'Boolean' : 'number';
       const typing = typingInto.has(m.id);
       const screen: ScreenContent = !isPowered
         ? { kind: 'off' }

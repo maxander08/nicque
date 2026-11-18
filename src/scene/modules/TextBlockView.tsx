@@ -5,8 +5,9 @@ import { BUTTON_CLEARANCE, ButtonCap, buttonHole } from '../parts/ButtonCap';
 import { BlockBadge } from '../parts/Decals';
 import { HeaderControls, headerHoles, useBlockOn, withPower } from '../parts/HeaderControls';
 import { Housing } from '../parts/Housing';
-import type { OperatorType } from '@/types';
-import { OperatorMark, TYPE_GRAY } from '../parts/OperatorMark';
+import { GATES } from '@/modules/definitions';
+import type { GateType, OperatorType } from '@/types';
+import { GATE_BLUE, OperatorMark, TYPE_GRAY } from '../parts/OperatorMark';
 import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.text;
@@ -36,12 +37,15 @@ export function TextBlockView({
   moduleId,
   badge = 'Text',
   operator,
+  gate,
   typeLabel = 'TXT',
 }: {
   moduleId: string;
   badge?: string;
   /** Set on operator blocks: which operator this is (yellow box + symbol). */
   operator?: OperatorType;
+  /** Set on logic gate blocks: which gate this is (blue box + name). */
+  gate?: GateType;
   /** Printed next to the gray box on non-operator blocks: "TXT" on the Text Block, "INT" on the Integer Block. */
   typeLabel?: string;
 }) {
@@ -75,6 +79,8 @@ export function TextBlockView({
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
       {operator ? (
         <OperatorMark width={def.width} depth={def.depth} symbol={operator} />
+      ) : gate ? (
+        <OperatorMark width={def.width} depth={def.depth} color={GATE_BLUE} label={GATES[gate].symbol} />
       ) : (
         <OperatorMark width={def.width} depth={def.depth} color={TYPE_GRAY} label={typeLabel} />
       )}

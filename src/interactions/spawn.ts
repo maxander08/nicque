@@ -25,7 +25,7 @@ function dockedKeySource(ws: Workspace, type: KeySourceType): { position: Vec2; 
   const keyInputs = MODULE_DEFINITIONS.text.ports.filter((p) => p.type === 'keys' && p.direction === 'in');
   for (const text of ws.modules) {
     // an Integer / Decimal Block has the very same key inputs as a Text Block
-    if (text.type !== 'text' && text.type !== 'integer' && text.type !== 'decimal') continue;
+    if (text.type !== 'text' && text.type !== 'integer' && text.type !== 'decimal' && text.type !== 'boolean') continue;
     for (const inPort of keyInputs) {
       const used = ws.connections.some((c) => c.to.moduleId === text.id && c.to.portId === inPort.id);
       if (used) continue;

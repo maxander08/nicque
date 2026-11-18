@@ -101,6 +101,7 @@ export function InteractionController() {
     };
 
     const endDrag = () => {
+      dropPending();
       const st = useStore.getState();
       if (drag?.kind === 'keys') {
         window.clearTimeout(drag.timer);
@@ -139,7 +140,7 @@ export function InteractionController() {
       d.timer = window.setTimeout(tick, profile.repeatDelay);
     };
 
-    const onMove = (e: PointerEvent) => {
+    const processMove = (e: PointerEvent) => {
       const st = useStore.getState();
       if (!drag) return;
       if (drag.kind === 'empty') {
@@ -188,7 +189,36 @@ export function InteractionController() {
       }
     };
 
+    // Perf: block and link drags are applied at most once per frame. A 120-1000 Hz pointer would otherwise run
+    // placement, store updates, cable routing and React renders many times per displayed frame.
+    let pendingMove: PointerEvent | null = null;
+    let moveFrame = 0;
+    const flushMove = () => {
+      moveFrame = 0;
+      const e = pendingMove;
+      pendingMove = null;
+      if (e) processMove(e);
+    };
+    const dropPending = () => {
+      if (moveFrame) cancelAnimationFrame(moveFrame);
+      moveFrame = 0;
+      pendingMove = null;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (drag && (drag.kind === 'module' || drag.kind === 'port')) {
+        pendingMove = e;
+        if (!moveFrame) moveFrame = requestAnimationFrame(flushMove);
+      } else {
+        processMove(e);
+      }
+    };
+
     const onUp = (e: PointerEvent) => {
+      if (pendingMove) {
+        // apply the last position before the release is handled
+        if (moveFrame) cancelAnimationFrame(moveFrame);
+        flushMove();
+      }
       const st = useStore.getState();
       const d = drag;
       if (!d) return endDrag();

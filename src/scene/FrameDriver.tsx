@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { reportFrameGap } from '@/rendering/adaptive';
 import { useStore } from '@/state/store';
 
 /** How long (ms) the loop keeps rendering after the last change, so eased animations can settle. */
@@ -24,6 +25,9 @@ export function FrameDriver() {
   const clock = useThree((s) => s.clock);
   const gl = useThree((s) => s.gl);
   const until = useRef(0);
+  const lastFrame = useRef(0);
+  const wasActive = useRef(false);
+  const mountedAt = useRef(performance.now());
 
   useEffect(() => {
     const bump = (ms: number) => {
@@ -67,7 +71,13 @@ export function FrameDriver() {
   }, [invalidate, clock]);
 
   useFrame(() => {
-    const active = performance.now() < until.current;
+    const now = performance.now();
+    const active = now < until.current;
+    // adaptive resolution: only gaps between frames of one continuous run say anything about performance
+    // (the first seconds are shader compilation and texture upload, not representative)
+    if (wasActive.current && now - mountedAt.current > WARMUP_MS + 1000) reportFrameGap(now - lastFrame.current, now);
+    wasActive.current = active;
+    lastFrame.current = now;
     if (active) invalidate();
     // Perf: shadow casters only move/appear when the store changes (which keeps `until` open). While the
     // camera merely orbits or zooms, re-use the existing shadow map instead of re-rendering every caster.

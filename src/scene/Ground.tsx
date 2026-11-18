@@ -5,6 +5,7 @@ import { KEY_LIGHT_DIRECTION } from '@/rendering/config';
 import { LIGHTING_PRESETS } from '@/rendering/lighting';
 import { bakeCableShadows, subscribeCableShapes } from '@/rendering/cableShadow';
 import {
+  createGroundBaker,
   createGroundOcclusionUniforms,
   disposeGroundOcclusionUniforms,
   patchGroundShader,
@@ -21,6 +22,8 @@ export function Ground() {
   const material = getMaterials().ground;
   const skyColor = LIGHTING_PRESETS[useStore((s) => s.lighting)].fog;
   const uniforms = useMemo(() => createGroundOcclusionUniforms(KEY_LIGHT_DIRECTION), []);
+  const baker = useMemo(() => createGroundBaker(uniforms), [uniforms]);
+  useEffect(() => () => baker.dispose(), [baker]);
 
   useEffect(() => {
     material.onBeforeCompile = (shader) => patchGroundShader(shader, uniforms);
@@ -49,11 +52,14 @@ export function Ground() {
 
   // Only touch uniforms when the module list actually changed.
   const last = useRef<ModuleRecord[] | null>(null);
-  useFrame(({ invalidate: again }) => {
-    const mods = useStore.getState().workspace.modules;
+  useFrame(({ gl, invalidate: again }) => {
+    const st = useStore.getState();
+    const mods = st.workspace.modules;
     if (last.current !== mods) {
       last.current = mods;
       updateGroundOcclusionUniforms(uniforms, mods);
+      // the block shadows and occlusion are re-rendered into a texture, and only where something changed
+      baker.update(gl, mods, st.draggingId !== null);
     }
     if (cablesDirty.current) {
       const now = performance.now();

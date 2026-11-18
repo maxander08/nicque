@@ -8,7 +8,8 @@ import {
   MAX_TEXT_LENGTH,
   createModule,
   getDefinition,
-  isOperatorType,
+  isComputeType,
+  sanitizeBoolean,
   sanitizeInteger,
 } from '@/modules/definitions';
 import {
@@ -78,9 +79,10 @@ interface Settings {
 }
 
 function loadSettings(): Settings {
-  // Touch devices start on Medium (the GPU budget is far smaller); a saved choice always wins.
+  // Touch devices start in Fast mode (the GPU budget is far smaller, and 90+ FPS matters more than shadow-map
+  // detail there); a saved choice always wins.
   const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
-  const fallback: Settings = { quality: coarse ? 'medium' : 'high', snap: true, lighting: 'studio' };
+  const fallback: Settings = { quality: coarse ? 'performance' : 'high', snap: true, lighting: 'studio' };
   try {
     const s = getBrowserStorage()?.getItem(SETTINGS_KEY);
     if (!s) return fallback;
@@ -305,7 +307,7 @@ export const useStore = create<Store>((set, get) => {
     setText: (id, value) => {
       const ws = get().workspace;
       const cur = ws.modules.find((m) => m.id === id);
-      if (!cur || (cur.type !== 'text' && cur.type !== 'integer' && cur.type !== 'decimal')) return;
+      if (!cur || (cur.type !== 'text' && cur.type !== 'integer' && cur.type !== 'decimal' && cur.type !== 'boolean')) return;
       // the Integer Block only ever holds a whole number: anything else is dropped. The Decimal Block only holds a
       // decimal number, with no limit on its digits.
       const v =
@@ -313,7 +315,9 @@ export const useStore = create<Store>((set, get) => {
           ? sanitizeInteger(value)
           : cur.type === 'decimal'
             ? sanitizeDecimal(value)
-            : value.slice(0, MAX_TEXT_LENGTH);
+            : cur.type === 'boolean'
+              ? sanitizeBoolean(value)
+              : value.slice(0, MAX_TEXT_LENGTH);
       if (cur.config.value === v) return;
       // remember the value this change replaces, so Undo can bring it back
       const past = get().valueHistory[id] ?? [];
@@ -325,7 +329,7 @@ export const useStore = create<Store>((set, get) => {
       const s = get();
       const cur = s.workspace.modules.find((m) => m.id === id);
       if (!cur) return;
-      if (cur.type === 'text' || cur.type === 'integer' || cur.type === 'decimal') {
+      if (cur.type === 'text' || cur.type === 'integer' || cur.type === 'decimal' || cur.type === 'boolean') {
         const past = s.valueHistory[id] ?? [];
         if (past.length === 0) {
           s.notify('Nothing to undo', 'info');
@@ -339,10 +343,12 @@ export const useStore = create<Store>((set, get) => {
             ? 'Undid the last integer change'
             : cur.type === 'decimal'
               ? 'Undid the last decimal change'
-              : 'Undid the last text change',
+              : cur.type === 'boolean'
+                ? 'Undid the last Boolean change'
+                : 'Undid the last text change',
           'info',
         );
-      } else if (isOperatorType(cur.type)) {
+      } else if (isComputeType(cur.type)) {
         // the only thing an operator can undo is its own clear button
         if ((cur.config as { cleared?: boolean }).cleared !== true) {
           s.notify('Nothing to undo', 'info');
@@ -449,15 +455,24 @@ export const useStore = create<Store>((set, get) => {
         );
         return;
       }
-      if (m.type === 'text' || m.type === 'integer' || m.type === 'decimal') {
+      if (m.type === 'text' || m.type === 'integer' || m.type === 'decimal' || m.type === 'boolean') {
         if (action === 'clear') {
           // X on a Text / Integer / Decimal Block empties the block itself, so every display it feeds goes blank too
           s.setText(moduleId, '');
-          s.notify(m.type === 'integer' ? 'Integer cleared' : m.type === 'decimal' ? 'Decimal cleared' : 'Text cleared', 'info');
+          s.notify(
+            m.type === 'integer'
+              ? 'Integer cleared'
+              : m.type === 'decimal'
+                ? 'Decimal cleared'
+                : m.type === 'boolean'
+                  ? 'Boolean cleared'
+                  : 'Text cleared',
+            'info',
+          );
         } else if (action === 'undo') {
           s.undoBlock(moduleId);
         }
-      } else if (isOperatorType(m.type)) {
+      } else if (isComputeType(m.type)) {
         if (action === 'clear') {
           // clears the value stored in the operator block only: the Integer / Text Blocks feeding it keep their data
           s.clearOperator(moduleId);
@@ -472,7 +487,7 @@ export const useStore = create<Store>((set, get) => {
     clearOperator: (operatorId) => {
       const s = get();
       const op = s.workspace.modules.find((m) => m.id === operatorId);
-      if (!op || !isOperatorType(op.type)) return;
+      if (!op || !isComputeType(op.type)) return;
       const rt = s.runtime.modules[operatorId];
       if ((op.config as { cleared?: boolean }).cleared === true || rt?.liveResult === undefined || rt.liveResult === '') {
         s.notify(`${op.name} holds no result to clear`, 'info');
@@ -491,8 +506,8 @@ export const useStore = create<Store>((set, get) => {
       const sources = feeds
         .map((c) => s.workspace.modules.find((m) => m.id === c.from.moduleId))
         .filter(
-          (m): m is Extract<ModuleRecord, { type: 'text' | 'integer' | 'decimal' }> =>
-            !!m && (m.type === 'text' || m.type === 'integer' || m.type === 'decimal'),
+          (m): m is Extract<ModuleRecord, { type: 'text' | 'integer' | 'decimal' | 'boolean' }> =>
+            !!m && (m.type === 'text' || m.type === 'integer' || m.type === 'decimal' || m.type === 'boolean'),
         );
       if (sources.length === 0) {
         s.notify('Nothing to clear. Link a Text Block to this display first.', 'warn');
@@ -643,7 +658,7 @@ export const useStore = create<Store>((set, get) => {
       for (const c of targets) {
         const t = get().workspace.modules.find((m) => m.id === c.to.moduleId);
         // an Integer Block drops anything that is not part of a whole number (setText sanitises it)
-        if (t && (t.type === 'text' || t.type === 'integer' || t.type === 'decimal')) {
+        if (t && (t.type === 'text' || t.type === 'integer' || t.type === 'decimal' || t.type === 'boolean')) {
           // a Decimal Block has no limit on its digits (only memory)
           get().setText(t.id, applyEdit(t.config.value, edit, t.type === 'decimal' ? Infinity : MAX_TEXT_LENGTH));
         }
