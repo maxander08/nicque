@@ -1,10 +1,10 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Bvh } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping, Color, FogExp2 } from 'three';
 import { InteractionController } from '@/interactions/InteractionController';
 import { getRenderScale, resetRenderScale, subscribeRenderScale } from '@/rendering/adaptive';
-import { QUALITY } from '@/rendering/config';
+import { MAX_RENDER_PIXELS, QUALITY } from '@/rendering/config';
 import { LIGHTING_PRESETS } from '@/rendering/lighting';
 import { useStore } from '@/state/store';
 import { Atmosphere } from './Atmosphere';
@@ -31,6 +31,19 @@ function Modules() {
   );
 }
 
+/** The window's CSS size, kept current on resize, so the render resolution can respect the pixel budget. */
+function useViewportPixels() {
+  const [px, setPx] = useState(() =>
+    typeof window === 'undefined' ? 1920 * 1080 : window.innerWidth * window.innerHeight,
+  );
+  useEffect(() => {
+    const on = () => setPx(window.innerWidth * window.innerHeight);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return px;
+}
+
 /** The 3D workspace: endless gray plane, studio lighting and the three hardware modules. */
 export function Scene() {
   const quality = useStore((s) => s.quality);
@@ -42,7 +55,10 @@ export function Scene() {
   const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
   const device = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   const base = Math.min(Math.max(device, q.dpr[0]), coarse ? Math.min(q.dpr[1], 1.25) : q.dpr[1]);
-  const dpr = Math.max(0.5, base * scale);
+  // never render more than the pixel budget, whatever the window / screen density
+  const cssPixels = useViewportPixels();
+  const budget = Math.sqrt(MAX_RENDER_PIXELS / Math.max(1, cssPixels));
+  const dpr = Math.max(0.5, Math.min(base, budget) * scale);
 
   return (
     <Canvas

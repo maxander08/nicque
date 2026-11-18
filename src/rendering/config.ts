@@ -38,14 +38,24 @@ export interface QualitySettings {
   aoSkipTransparency: boolean;
 }
 
+/**
+ * Upper bound on the number of pixels the WebGL canvas may render (width x height x dpr^2). Very large or 4K / HiDPI
+ * windows would otherwise allocate gigantic multisampled framebuffers (and N8AO targets) and take the tab down.
+ * Windows up to about 1080p at DPR 1.5 are unaffected; only bigger ones render slightly softer instead of crashing.
+ */
+export const MAX_RENDER_PIXELS = 3_200_000;
+
 export const QUALITY: Record<Quality, QualitySettings> = {
   high: {
     shadows: true,
     shadowMapSize: 2048,
     shadowRadius: 2,
     postprocessing: true,
-    multisampling: 4,
-    dpr: [1, 2],
+    // Perf: 4x MSAA at a 2.0 DPR multiplies the multisampled render targets (colour + depth, at 16 samples per CSS
+    // pixel on HiDPI screens) and is what exhausts GPU memory and crashes Chrome. 2x MSAA with a 1.5 DPR cap looks
+    // the same at normal viewing distance for a fraction of the memory.
+    multisampling: 2,
+    dpr: [1, 1.5],
     ao: 'high',
     // half-resolution AO with depth-aware upsampling is visually the same for soft occlusion at a quarter of the cost
     aoHalfRes: true,

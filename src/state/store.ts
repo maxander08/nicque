@@ -80,9 +80,10 @@ interface Settings {
 
 function loadSettings(): Settings {
   // Touch devices start in Fast mode (the GPU budget is far smaller, and 90+ FPS matters more than shadow-map
-  // detail there); a saved choice always wins.
+  // detail there); desktops start in Medium (the best balance of look and GPU load: High's extra shadow detail and
+  // AO samples are only worth it on strong GPUs, where it is one click away). A saved choice always wins.
   const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
-  const fallback: Settings = { quality: coarse ? 'performance' : 'high', snap: true, lighting: 'studio' };
+  const fallback: Settings = { quality: coarse ? 'performance' : 'medium', snap: true, lighting: 'studio' };
   try {
     const s = getBrowserStorage()?.getItem(SETTINGS_KEY);
     if (!s) return fallback;
