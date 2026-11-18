@@ -6,7 +6,7 @@ import { BlockBadge } from '../parts/Decals';
 import { HeaderControls, headerHoles, useBlockOn, withPower } from '../parts/HeaderControls';
 import { Housing } from '../parts/Housing';
 import type { OperatorType } from '@/types';
-import { OperatorMark } from '../parts/OperatorMark';
+import { OperatorMark, TYPE_GRAY } from '../parts/OperatorMark';
 import { PowerLed } from '../parts/PowerLed';
 
 const def = MODULE_DEFINITIONS.text;
@@ -36,11 +36,14 @@ export function TextBlockView({
   moduleId,
   badge = 'Text',
   operator,
+  typeLabel = 'TXT',
 }: {
   moduleId: string;
   badge?: string;
   /** Set on operator blocks: which operator this is (yellow box + symbol). */
   operator?: OperatorType;
+  /** Printed next to the gray box on non-operator blocks: "TXT" on the Text Block, "INT" on the Integer Block. */
+  typeLabel?: string;
 }) {
   const powered = useBlockOn(moduleId);
   const buttons = BUTTONS;
@@ -70,7 +73,11 @@ export function TextBlockView({
       ))}
       <HeaderControls moduleId={moduleId} width={def.width} depth={def.depth} controls={CONTROLS} />
       <PowerLed width={def.width} depth={def.depth} powered={powered} />
-      {operator && <OperatorMark width={def.width} depth={def.depth} symbol={operator} />}
+      {operator ? (
+        <OperatorMark width={def.width} depth={def.depth} symbol={operator} />
+      ) : (
+        <OperatorMark width={def.width} depth={def.depth} color={TYPE_GRAY} label={typeLabel} />
+      )}
       <BlockBadge name={badge} x={0} z={badgeZ(def.depth)} width={0.36} height={0.15} />
     </group>
   );

@@ -17,11 +17,14 @@ interface Props {
 
 const OFF = new Color('#2d2f36');
 
+/** Lit colour of every block's power light: a soft light green that sits well on the dark gray cover. */
+export const POWER_LED_GREEN = '#8ff0a4';
+
 /**
  * The block's single status light: one small round lens flush with the top cover, in the top-left corner.
  * Lit = the block receives power; dark = it does not. It is just the light itself: no halo, no rim.
  */
-export const PowerLed = memo(function PowerLed({ width, depth, powered, color = '#d7c9ff', header }: Props) {
+export const PowerLed = memo(function PowerLed({ width, depth, powered, color = POWER_LED_GREEN, header }: Props) {
   const { x, z } = powerLedPosition(width, depth, header);
   const on = useMemo(() => new Color(color), [color]);
   const level = powered ? 1 : 0;
