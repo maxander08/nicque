@@ -50,7 +50,8 @@ export function Scene() {
   const q = QUALITY[quality];
   const scale = useSyncExternalStore(subscribeRenderScale, getRenderScale);
   // a new canvas starts at full resolution; Fast mode may go lower than the other modes before giving up
-  useEffect(() => resetRenderScale(quality === 'performance' ? 5 : 3), [quality]);
+  // Perf: every mode may now step all the way down (0.5x); fast GPUs never leave 1x, so nothing changes for them
+  useEffect(() => resetRenderScale(5), [quality]);
   // Touch screens are 2-3x density: more than 1.25x the CSS resolution costs far more than it shows
   const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
   const device = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -78,6 +79,11 @@ export function Scene() {
       onCreated={(state) => {
         const { scene } = state;
         (window as unknown as { __three: unknown }).__three = state;
+        // Perf/robustness: if the GPU process drops the context (memory pressure), let three.js restore it
+        // and redraw instead of leaving a dead canvas.
+        const el = state.gl.domElement;
+        el.addEventListener('webglcontextlost', (ev) => ev.preventDefault());
+        el.addEventListener('webglcontextrestored', () => state.invalidate());
         const look = LIGHTING_PRESETS[useStore.getState().lighting];
         scene.fog = new FogExp2(new Color(look.fog), look.fogDensity);
       }}

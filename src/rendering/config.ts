@@ -43,7 +43,7 @@ export interface QualitySettings {
  * windows would otherwise allocate gigantic multisampled framebuffers (and N8AO targets) and take the tab down.
  * Windows up to about 1080p at DPR 1.5 are unaffected; only bigger ones render slightly softer instead of crashing.
  */
-export const MAX_RENDER_PIXELS = 3_200_000;
+export const MAX_RENDER_PIXELS = 2_100_000;
 
 export const QUALITY: Record<Quality, QualitySettings> = {
   high: {
@@ -55,7 +55,7 @@ export const QUALITY: Record<Quality, QualitySettings> = {
     // pixel on HiDPI screens) and is what exhausts GPU memory and crashes Chrome. 2x MSAA with a 1.5 DPR cap looks
     // the same at normal viewing distance for a fraction of the memory.
     multisampling: 2,
-    dpr: [1, 1.5],
+    dpr: [1, 1.25],
     ao: 'high',
     // half-resolution AO with depth-aware upsampling is visually the same for soft occlusion at a quarter of the cost
     aoHalfRes: true,
@@ -69,7 +69,7 @@ export const QUALITY: Record<Quality, QualitySettings> = {
     postprocessing: true,
     // 2x MSAA + a 1.5 DPR cap cuts fill-rate and bandwidth by more than half on HiDPI screens.
     multisampling: 2,
-    dpr: [1, 1.5],
+    dpr: [1, 1.25],
     ao: 'medium',
     aoHalfRes: true,
     aoSkipTransparency: true,

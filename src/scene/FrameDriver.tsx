@@ -75,7 +75,7 @@ export function FrameDriver() {
     const active = now < until.current;
     // adaptive resolution: only gaps between frames of one continuous run say anything about performance
     // (the first seconds are shader compilation and texture upload, not representative)
-    if (wasActive.current && now - mountedAt.current > WARMUP_MS + 1000) reportFrameGap(now - lastFrame.current, now);
+    if (wasActive.current && now - mountedAt.current > WARMUP_MS - 500) reportFrameGap(now - lastFrame.current, now);
     wasActive.current = active;
     lastFrame.current = now;
     if (active) invalidate();

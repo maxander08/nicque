@@ -78,12 +78,33 @@ interface Settings {
   lighting: LightingId;
 }
 
+/** True when the browser's WebGL is a CPU rasteriser (SwiftShader, llvmpipe, ...). Probed once, with a throwaway context. */
+function isSoftwareGL(): boolean {
+  try {
+    if (typeof document === 'undefined') return false;
+    const c = document.createElement('canvas');
+    const gl = (c.getContext('webgl2') || c.getContext('webgl')) as WebGLRenderingContext | null;
+    if (!gl) return false;
+    const info = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name);
+  } catch {
+    return false;
+  }
+}
+
 function loadSettings(): Settings {
   // Touch devices start in Fast mode (the GPU budget is far smaller, and 90+ FPS matters more than shadow-map
   // detail there); desktops start in Medium (the best balance of look and GPU load: High's extra shadow detail and
   // AO samples are only worth it on strong GPUs, where it is one click away). A saved choice always wins.
   const coarse = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
-  const fallback: Settings = { quality: coarse ? 'performance' : 'medium', snap: true, lighting: 'studio' };
+  // A CPU ("software") WebGL renderer (GPU disabled / blocklisted, remote desktops) cannot run shadows + AO smoothly.
+  const fallback: Settings = {
+    quality: coarse || isSoftwareGL() ? 'performance' : 'medium',
+    snap: true,
+    lighting: 'studio',
+  };
   try {
     const s = getBrowserStorage()?.getItem(SETTINGS_KEY);
     if (!s) return fallback;

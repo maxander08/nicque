@@ -60,8 +60,11 @@ export function reportFrameGap(gapMs: number, now: number) {
   if (samples.length < WINDOW) return;
   if (samples.length > WINDOW) samples.shift();
 
-  // The display's own refresh interval: the fastest frames seen (a 60 Hz screen never goes below ~16.6 ms).
-  const refresh = Math.max(6, Math.min(...gaps));
+  // The display's own refresh interval: the fastest frames seen (a 144 Hz screen goes down to ~7 ms).
+  // Perf fix: it is capped at 60 Hz (16.7 ms). Previously a device whose *every* frame was slow (e.g. 150 ms on a
+  // weak / software GPU) mistook its own slow frames for the display's refresh rate, so it never lowered the
+  // resolution and stayed stuck at a slideshow (INP of many seconds). Now anything slower than ~60 Hz steps down.
+  const refresh = Math.max(6, Math.min(Math.min(...gaps), 16.7));
   const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
   if (now - lastChange < 600) return;
 
