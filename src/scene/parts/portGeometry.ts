@@ -1,6 +1,7 @@
-import { BoxGeometry, CylinderGeometry, type BufferGeometry } from 'three';
+import { BoxGeometry, BufferGeometry, CylinderGeometry, Matrix4 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { BLOCK_HEIGHT } from '@/modules/definitions';
+import { BLOCK_HEIGHT, MODULE_DEFINITIONS } from '@/modules/definitions';
+import type { ModuleType } from '@/types';
 
 /**
  * Every connector of a direction looks the same, so its small parts (pads, magnets, status lights) are merged into
@@ -39,4 +40,45 @@ export function getPortGeometries(isOut: boolean): PortGeometries {
       new BoxGeometry(0.022, 0.0014, 0.22).translate(-0.05, BLOCK_HEIGHT + 0.0006, 0),
     ]),
   });
+}
+
+export interface ModulePortStatics {
+  /** Connector inserts of every port of the block (they cast shadows). */
+  insert: BufferGeometry;
+  contacts: BufferGeometry;
+  steel: BufferGeometry;
+}
+
+const statics = new Map<ModuleType, ModulePortStatics>();
+
+/**
+ * The inert parts of all of a block's connectors, merged (in block space) into one geometry per material and shared by
+ * every block of that type. Each connector used to draw three separate meshes for them; a block with seven connectors
+ * now draws three in total, in every pass (shadow map, ambient occlusion, colour). Positions, rotations and
+ * materials are exactly the ones the per-connector meshes had. Only the status lights stay per connector, because
+ * their colour is animated individually.
+ */
+export function getModulePortStatics(type: ModuleType): ModulePortStatics {
+  let st = statics.get(type);
+  if (st) return st;
+  const parts: Record<keyof ModulePortStatics, BufferGeometry[]> = { insert: [], contacts: [], steel: [] };
+  for (const port of MODULE_DEFINITIONS[type].ports) {
+    const geos = getPortGeometries(port.direction === 'out');
+    const yaw = Math.atan2(-port.normal.z, port.normal.x);
+    const m = new Matrix4().makeRotationY(yaw).setPosition(port.local.x, 0, port.local.z);
+    for (const k of ['insert', 'contacts', 'steel'] as const) parts[k].push(geos[k].clone().applyMatrix4(m));
+  }
+  const merged = (list: BufferGeometry[]) => {
+    if (list.length === 0) return new BufferGeometry();
+    const g = mergeGeometries(list, false) ?? list[0];
+    list.forEach((p) => p !== g && p.dispose());
+    return g;
+  };
+  st = {
+    insert: merged(parts.insert),
+    contacts: merged(parts.contacts),
+    steel: merged(parts.steel),
+  };
+  statics.set(type, st);
+  return st;
 }

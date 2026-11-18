@@ -1,8 +1,8 @@
 import { memo } from 'react';
+import type { BufferGeometry } from 'three';
 import { createSlabGeometry, type HoleSpec } from '@/geometry/slab';
 import { getMaterials } from '@/materials/library';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
-import { useDisposable } from '../hooks';
 
 export const CORNER_RADIUS = 0.17;
 
@@ -13,16 +13,25 @@ interface Props {
 }
 
 /**
- * Two-part housing: bead-blasted metal chassis on a rubber foot, a hairline seam, and a polymer top
- * cover with real openings for screens and buttons.
+ * The four slab geometries of a housing only depend on its footprint and its openings, so they are built once per
+ * distinct block type and shared by every block of that type (building them is the single most expensive thing a
+ * block does when it appears, and each copy also needs its own BVH and GPU buffers).
  */
-export const Housing = memo(function Housing({ width, depth, holes }: Props) {
-  const m = getMaterials();
-  const R = CORNER_RADIUS;
+interface HousingGeometries {
+  foot: BufferGeometry;
+  chassis: BufferGeometry;
+  seam: BufferGeometry;
+  cover: BufferGeometry;
+}
+const housingCache = new Map<string, HousingGeometries>();
 
-  const foot = useDisposable(
-    () =>
-      createSlabGeometry({
+function getHousingGeometries(width: number, depth: number, holes?: HoleSpec[]): HousingGeometries {
+  const R = CORNER_RADIUS;
+  const key = `${width}|${depth}|${holes ? JSON.stringify(holes) : ''}`;
+  let g = housingCache.get(key);
+  if (!g) {
+    g = {
+      foot: createSlabGeometry({
         width: width - 0.18,
         depth: depth - 0.18,
         height: 0.012,
@@ -30,11 +39,7 @@ export const Housing = memo(function Housing({ width, depth, holes }: Props) {
         bevelBottom: 0.003,
         cornerSegments: 6,
       }),
-    [width, depth],
-  );
-  const chassis = useDisposable(
-    () =>
-      createSlabGeometry({
+      chassis: createSlabGeometry({
         width,
         depth,
         height: 0.138,
@@ -44,22 +49,14 @@ export const Housing = memo(function Housing({ width, depth, holes }: Props) {
         bevelSegments: 5,
         cornerSegments: 12,
       }),
-    [width, depth],
-  );
-  const seam = useDisposable(
-    () =>
-      createSlabGeometry({
+      seam: createSlabGeometry({
         width: width - 0.012,
         depth: depth - 0.012,
         height: 0.014,
         radius: R - 0.006,
         cornerSegments: 8,
       }),
-    [width, depth],
-  );
-  const cover = useDisposable(
-    () =>
-      createSlabGeometry({
+      cover: createSlabGeometry({
         width,
         depth,
         height: BLOCK_HEIGHT - 0.15,
@@ -70,8 +67,19 @@ export const Housing = memo(function Housing({ width, depth, holes }: Props) {
         cornerSegments: 12,
         holes,
       }),
-    [width, depth, holes],
-  );
+    };
+    housingCache.set(key, g);
+  }
+  return g;
+}
+
+/**
+ * Two-part housing: bead-blasted metal chassis on a rubber foot, a hairline seam, and a polymer top
+ * cover with real openings for screens and buttons.
+ */
+export const Housing = memo(function Housing({ width, depth, holes }: Props) {
+  const m = getMaterials();
+  const { foot, chassis, seam, cover } = getHousingGeometries(width, depth, holes);
 
   return (
     <group>

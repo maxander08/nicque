@@ -1,9 +1,8 @@
-import { memo, useEffect, useMemo } from 'react';
+import { memo } from 'react';
 import { CanvasTexture, SRGBColorSpace } from 'three';
 import { SCREEN_FONT, drawIcon, type IconName } from '@/materials/screens';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
-import { useThree } from '@react-three/fiber';
-import { useFontsReady } from '../hooks';
+import { getDecalMaterial, getPlane, useFontsReady, useSharedCanvasTexture } from '../hooks';
 
 const TOP = BLOCK_HEIGHT;
 
@@ -31,43 +30,30 @@ export const LabelDecal = memo(function LabelDecal({
   weight = 600,
 }: LabelProps) {
   const fonts = useFontsReady();
-  const invalidate = useThree((s) => s.invalidate);
-  const tex = useMemo(() => {
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = Math.round((512 * height) / width);
-    const t = new CanvasTexture(c);
-    t.colorSpace = SRGBColorSpace;
-    t.anisotropy = 8;
-    return t;
-  }, [width, height]);
-  useEffect(() => {
-    const c = tex.image as HTMLCanvasElement;
-    const ctx = c.getContext('2d')!;
-    ctx.clearRect(0, 0, c.width, c.height);
-    ctx.fillStyle = color;
-    ctx.font = `${weight} ${Math.round(c.height * 0.62)}px ${SCREEN_FONT}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    (ctx as unknown as { letterSpacing: string }).letterSpacing = `${Math.round(c.height * 0.12)}px`;
-    ctx.fillText(text, c.width / 2, c.height / 2 + 2);
-    tex.needsUpdate = true;
-    invalidate();
-  }, [tex, text, color, weight, fonts, invalidate]);
-  useEffect(() => () => tex.dispose(), [tex]);
+  const texH = Math.round((512 * height) / width);
+  const tex = useSharedCanvasTexture(
+    `label|${text}|${color}|${weight}|${width}|${height}`,
+    512,
+    texH,
+    (ctx, c) => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.fillStyle = color;
+      ctx.font = `${weight} ${Math.round(c.height * 0.62)}px ${SCREEN_FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      (ctx as unknown as { letterSpacing: string }).letterSpacing = `${Math.round(c.height * 0.12)}px`;
+      ctx.fillText(text, c.width / 2, c.height / 2 + 2);
+    },
+    fonts,
+  );
   return (
-    <mesh position={[x, TOP + 0.0012, z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
-      <planeGeometry args={[width, height]} />
-      <meshBasicMaterial
-        map={tex}
-        transparent
-        opacity={opacity}
-        depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-2}
-        polygonOffsetUnits={-2}
-      />
-    </mesh>
+    <mesh
+      position={[x, TOP + 0.0012, z]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      renderOrder={2}
+      geometry={getPlane(width, height)}
+      material={getDecalMaterial(tex, opacity)}
+    />
   );
 });
 
@@ -86,51 +72,37 @@ interface BadgeProps {
  */
 export const BlockBadge = memo(function BlockBadge({ name, x, z, width = 0.42, height = 0.17 }: BadgeProps) {
   const fonts = useFontsReady();
-  const invalidate = useThree((s) => s.invalidate);
-  const tex = useMemo(() => {
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = Math.round((512 * height) / width);
-    const t = new CanvasTexture(c);
-    t.colorSpace = SRGBColorSpace;
-    t.anisotropy = 8;
-    return t;
-  }, [width, height]);
-  useEffect(() => {
-    const c = tex.image as HTMLCanvasElement;
-    const ctx = c.getContext('2d')!;
-    ctx.clearRect(0, 0, c.width, c.height);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const spacing = (px: number) => {
-      (ctx as unknown as { letterSpacing: string }).letterSpacing = `${px}px`;
-    };
-    const h = c.height;
-    ctx.fillStyle = '#c3c6ce';
-    ctx.font = `700 ${Math.round(h * 0.33)}px ${SCREEN_FONT}`;
-    spacing(Math.round(h * 0.04));
-    ctx.fillText('nicque', c.width / 2, h * 0.3);
-    ctx.fillStyle = '#a4a8b2';
-    ctx.font = `600 ${Math.round(h * 0.25)}px ${SCREEN_FONT}`;
-    spacing(Math.round(h * 0.07));
-    ctx.fillText(name.toUpperCase(), c.width / 2, h * 0.72);
-    tex.needsUpdate = true;
-    invalidate();
-  }, [tex, name, fonts, invalidate]);
-  useEffect(() => () => tex.dispose(), [tex]);
+  const tex = useSharedCanvasTexture(
+    `badge|${name}|${width}|${height}`,
+    512,
+    Math.round((512 * height) / width),
+    (ctx, c) => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const spacing = (px: number) => {
+        (ctx as unknown as { letterSpacing: string }).letterSpacing = `${px}px`;
+      };
+      const h = c.height;
+      ctx.fillStyle = '#c3c6ce';
+      ctx.font = `700 ${Math.round(h * 0.33)}px ${SCREEN_FONT}`;
+      spacing(Math.round(h * 0.04));
+      ctx.fillText('nicque', c.width / 2, h * 0.3);
+      ctx.fillStyle = '#a4a8b2';
+      ctx.font = `600 ${Math.round(h * 0.25)}px ${SCREEN_FONT}`;
+      spacing(Math.round(h * 0.07));
+      ctx.fillText(name.toUpperCase(), c.width / 2, h * 0.72);
+    },
+    fonts,
+  );
   return (
-    <mesh position={[x, TOP + 0.0012, z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
-      <planeGeometry args={[width, height]} />
-      <meshBasicMaterial
-        map={tex}
-        transparent
-        opacity={0.62}
-        depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-2}
-        polygonOffsetUnits={-2}
-      />
-    </mesh>
+    <mesh
+      position={[x, TOP + 0.0012, z]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      renderOrder={2}
+      geometry={getPlane(width, height)}
+      material={getDecalMaterial(tex, 0.62)}
+    />
   );
 });
 

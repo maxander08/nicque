@@ -8,6 +8,8 @@ import type { ModuleType } from '@/types';
 import { useDisposable } from '../hooks';
 import { CORNER_RADIUS } from '../parts/Housing';
 import { PortView } from '../parts/PortView';
+import { getModulePortStatics } from '../parts/portGeometry';
+import { getMaterials } from '@/materials/library';
 import { AdderBlockView, DivisorBlockView, MultiplierBlockView, SubtractorBlockView } from './OperatorBlockViews';
 import { BooleanBlockView } from './BooleanBlockView';
 import { AndGateView, NandGateView, NorGateView, NotGateView, OrGateView, XnorGateView, XorGateView } from './GateBlockViews';
@@ -55,11 +57,26 @@ function SelectionRing({ width, depth }: { width: number; depth: number }) {
   return <mesh geometry={geo} material={ringMaterial} position={[0, 0.004, 0]} raycast={() => null} renderOrder={1} />;
 }
 
+/** Connector inserts, contact pads and magnets of the whole block: three draw calls however many connectors it has. */
+const PortStatics = memo(function PortStatics({ type }: { type: ModuleType }) {
+  const m = getMaterials();
+  const g = getModulePortStatics(type);
+  return (
+    <>
+      <mesh geometry={g.insert} material={m.insert} castShadow />
+      <mesh geometry={g.contacts} material={m.contact} />
+      <mesh geometry={g.steel} material={m.steel} />
+    </>
+  );
+});
+
 export const ModuleView = memo(function ModuleView({ moduleId }: { moduleId: string }) {
-  const type = useStore((s) => s.workspace.modules.find((m) => m.id === moduleId)?.type);
-  const x = useStore((s) => s.workspace.modules.find((m) => m.id === moduleId)?.position.x ?? 0);
-  const z = useStore((s) => s.workspace.modules.find((m) => m.id === moduleId)?.position.z ?? 0);
-  const rotation = useStore((s) => s.workspace.modules.find((m) => m.id === moduleId)?.rotation ?? 0);
+  // one lookup per store update instead of four (each is a linear search through every block)
+  const mod = useStore((s) => s.workspace.modules.find((m) => m.id === moduleId));
+  const type = mod?.type;
+  const x = mod?.position.x ?? 0;
+  const z = mod?.position.z ?? 0;
+  const rotation = mod?.rotation ?? 0;
   const selected = useStore((s) => s.selectedId === moduleId);
   if (!type) return null;
 
@@ -74,6 +91,7 @@ export const ModuleView = memo(function ModuleView({ moduleId }: { moduleId: str
       name={`module-${moduleId}`}
     >
       <Body moduleId={moduleId} />
+      <PortStatics type={type} />
       {def.ports.map((p) => (
         <PortView key={p.id} moduleId={moduleId} port={p} />
       ))}

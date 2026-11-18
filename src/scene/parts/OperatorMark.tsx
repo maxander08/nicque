@@ -1,12 +1,11 @@
-import { memo, useEffect, useMemo } from 'react';
-import { useThree } from '@react-three/fiber';
-import { BufferGeometry, CanvasTexture, MeshBasicMaterial, SRGBColorSpace, Shape, ShapeGeometry } from 'three';
+import { memo } from 'react';
+import { BufferGeometry, MeshBasicMaterial, Shape, ShapeGeometry } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { BLOCK_HEIGHT } from '@/modules/definitions';
 import type { OperatorType } from '@/types';
 import { LED_RADIUS, powerLedPosition } from '@/modules/layout';
 import { SCREEN_FONT } from '@/materials/screens';
-import { useDisposable, useFontsReady } from '../hooks';
+import { getPlane, getDecalMaterial, useFontsReady, useSharedCanvasTexture } from '../hooks';
 
 /** Side of the yellow operator box: a little larger than the power LED lens next to it. */
 export const OPERATOR_BOX_SIZE = 0.1;
@@ -130,32 +129,23 @@ const BoxLabel = memo(function BoxLabel({
   color: string;
 }) {
   const fonts = useFontsReady();
-  const invalidate = useThree((s) => s.invalidate);
-  const tex = useMemo(() => {
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = Math.round((512 * LABEL_H) / LABEL_W);
-    const t = new CanvasTexture(c);
-    t.colorSpace = SRGBColorSpace;
-    t.anisotropy = 8;
-    return t;
-  }, []);
-  useEffect(() => {
-    const c = tex.image as HTMLCanvasElement;
-    const ctx = c.getContext('2d')!;
-    ctx.clearRect(0, 0, c.width, c.height);
-    ctx.fillStyle = color;
-    const px = Math.round((LABEL_FONT * c.width) / LABEL_W);
-    ctx.font = `700 ${px}px ${SCREEN_FONT}`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    (ctx as unknown as { letterSpacing: string }).letterSpacing = `${Math.round(px * 0.05)}px`;
-    const cap = ctx.measureText('H').actualBoundingBoxAscent || px * 0.7;
-    ctx.fillText(text, 2, c.height / 2 + cap / 2);
-    tex.needsUpdate = true;
-    invalidate();
-  }, [tex, text, color, fonts, invalidate]);
-  useEffect(() => () => tex.dispose(), [tex]);
+  const tex = useSharedCanvasTexture(
+    `boxlabel|${text}|${color}`,
+    512,
+    Math.round((512 * LABEL_H) / LABEL_W),
+    (ctx, c) => {
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.fillStyle = color;
+      const px = Math.round((LABEL_FONT * c.width) / LABEL_W);
+      ctx.font = `700 ${px}px ${SCREEN_FONT}`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+      (ctx as unknown as { letterSpacing: string }).letterSpacing = `${Math.round(px * 0.05)}px`;
+      const cap = ctx.measureText('H').actualBoundingBoxAscent || px * 0.7;
+      ctx.fillText(text, 2, c.height / 2 + cap / 2);
+    },
+    fonts,
+  );
   return (
     <mesh
       position={[x + LABEL_W / 2, BLOCK_HEIGHT + 0.0012, z]}
@@ -163,20 +153,41 @@ const BoxLabel = memo(function BoxLabel({
       renderOrder={2}
       raycast={() => null}
       name="block-type-label"
-    >
-      <planeGeometry args={[LABEL_W, LABEL_H]} />
-      <meshBasicMaterial
-        map={tex}
-        transparent
-        toneMapped={false}
-        depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-2}
-        polygonOffsetUnits={-2}
-      />
-    </mesh>
+      geometry={getPlane(LABEL_W, LABEL_H)}
+      material={getDecalMaterial(tex, 1, false)}
+    />
   );
 });
+
+/* One box geometry, one symbol geometry per operator and one material per colour, shared by every block. */
+let boxGeo: BufferGeometry | null = null;
+const sharedBoxGeometry = () =>
+  (boxGeo ??= new ShapeGeometry(roundedSquare(OPERATOR_BOX_SIZE, CORNER), 6).rotateX(-Math.PI / 2));
+const symbolGeos = new Map<string, BufferGeometry>();
+const sharedSymbolGeometry = (symbol?: OperatorType) => {
+  const k = symbol ?? '';
+  let g = symbolGeos.get(k);
+  if (!g) {
+    g = symbol ? operatorSymbolGeometry(symbol) : new BufferGeometry();
+    symbolGeos.set(k, g);
+  }
+  return g;
+};
+const boxMaterials = new Map<string, MeshBasicMaterial>();
+const sharedBoxMaterial = (color: string) => {
+  let m = boxMaterials.get(color);
+  if (!m) {
+    m = new MeshBasicMaterial({
+      color,
+      toneMapped: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    boxMaterials.set(color, m);
+  }
+  return m;
+};
 
 /**
  * The yellow box that marks a block as an operator block. It lies flush on the top cover, to the right of the
@@ -185,22 +196,9 @@ const BoxLabel = memo(function BoxLabel({
 export const OperatorMark = memo(function OperatorMark({ width, depth, header, symbol, color = OPERATOR_YELLOW, label }: Props) {
   const { x, z } = operatorMarkPosition(width, depth, header);
   const sym = operatorSymbolPosition(width, depth, header);
-  const geo = useDisposable(
-    () => new ShapeGeometry(roundedSquare(OPERATOR_BOX_SIZE, CORNER), 6).rotateX(-Math.PI / 2),
-    [],
-  );
-  const mat = useDisposable(
-    () =>
-      new MeshBasicMaterial({
-        color,
-        toneMapped: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
-      }),
-    [color],
-  );
-  const symGeo = useDisposable(() => (symbol ? operatorSymbolGeometry(symbol) : new BufferGeometry()), [symbol]);
+  const geo = sharedBoxGeometry();
+  const mat = sharedBoxMaterial(color);
+  const symGeo = sharedSymbolGeometry(symbol);
   return (
     <>
       <mesh

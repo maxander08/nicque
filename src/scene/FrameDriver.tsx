@@ -3,8 +3,13 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { reportFrameGap } from '@/rendering/adaptive';
 import { useStore } from '@/state/store';
 
-/** How long (ms) the loop keeps rendering after the last change, so eased animations can settle. */
-const SETTLE_MS = 1500;
+/**
+ * How long (ms) the loop keeps rendering after the last change. Every eased animation (button caps, LEDs, camera,
+ * screens, ground bake) asks for its own frames until it has settled, so this is only a safety net that covers React
+ * committing the new props. It used to be 1.5 s, which re-drew the whole scene (shadow map, ambient occlusion, MSAA)
+ * ~90 times after every single click or drag for nothing.
+ */
+const SETTLE_MS = 350;
 /** Extra warm-up on mount: environment probe, textures and shader compilation. */
 const WARMUP_MS = 3000;
 

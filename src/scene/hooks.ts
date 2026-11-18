@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useThree } from '@react-three/fiber';
-import { CanvasTexture, SRGBColorSpace } from 'three';
+import { CanvasTexture, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, type Texture } from 'three';
 import { SCREEN_FONT } from '@/materials/screens';
 
 /**
@@ -76,4 +76,101 @@ export function useScreenTexture(
   }, [tex, ...deps]);
 
   return tex;
+}
+
+/* -------------------------------------------------------------------------------------------------------------- */
+/* Shared decal resources                                                                                          */
+/* -------------------------------------------------------------------------------------------------------------- */
+/*
+ * Every block prints the same few labels ("nicque" + the block name, "TXT", "INT", ...). They used to own one canvas,
+ * one mip-mapped GPU texture, one plane and one material *each*, so a workspace of 100 blocks carried 100 copies of
+ * identical images. They are now painted once per distinct label and shared; the pixels on screen are identical.
+ */
+
+interface SharedTexture {
+  tex: CanvasTexture;
+  painted: number;
+}
+
+const sharedTextures = new Map<string, SharedTexture>();
+
+/**
+ * A canvas texture shared by every component that asks for the same `key`. `key` must describe everything the
+ * painting depends on (text, colour, size ...). It is repainted once when the fonts become available.
+ */
+export function useSharedCanvasTexture(
+  key: string,
+  width: number,
+  height: number,
+  paint: (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => void,
+  fonts: number,
+): CanvasTexture {
+  const invalidate = useThree((s) => s.invalidate);
+  const entry = useMemo(() => {
+    let e = sharedTextures.get(key);
+    if (!e) {
+      const c = document.createElement('canvas');
+      c.width = width;
+      c.height = height;
+      const t = new CanvasTexture(c);
+      t.colorSpace = SRGBColorSpace;
+      t.anisotropy = 8;
+      e = { tex: t, painted: -1 };
+      sharedTextures.set(key, e);
+    }
+    return e;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, width, height]);
+
+  useEffect(() => {
+    if (entry.painted === fonts) return;
+    entry.painted = fonts;
+    const c = entry.tex.image as HTMLCanvasElement;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    paint(ctx, c);
+    entry.tex.needsUpdate = true;
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry, fonts, invalidate]);
+
+  return entry.tex;
+}
+
+const planes = new Map<string, PlaneGeometry>();
+/** One plane geometry per distinct size, shared by all blocks. */
+export function getPlane(width: number, height: number): PlaneGeometry {
+  const k = `${width}x${height}`;
+  let g = planes.get(k);
+  if (!g) {
+    g = new PlaneGeometry(width, height);
+    planes.set(k, g);
+  }
+  return g;
+}
+
+const decalMaterials = new WeakMap<Texture, Map<string, MeshBasicMaterial>>();
+/** One decal material per texture and look, shared by all blocks (same blending / polygon offset as before). */
+export function getDecalMaterial(map: Texture, opacity = 1, toneMapped = true): MeshBasicMaterial {
+  let byLook = decalMaterials.get(map);
+  if (!byLook) {
+    byLook = new Map();
+    decalMaterials.set(map, byLook);
+  }
+  const k = `${opacity}|${toneMapped}`;
+  let m = byLook.get(k);
+  if (!m) {
+    m = new MeshBasicMaterial({
+      map,
+      transparent: true,
+      opacity,
+      toneMapped,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    byLook.set(k, m);
+  }
+  return m;
 }

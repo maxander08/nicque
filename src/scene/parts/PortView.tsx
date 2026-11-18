@@ -2,7 +2,6 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Color, MeshBasicMaterial } from 'three';
 import { validateConnection } from '@/connections/validate';
-import { getMaterials } from '@/materials/library';
 import { useStore } from '@/state/store';
 import { getPortGeometries } from './portGeometry';
 import type { PortDef, PortRef, Workspace } from '@/types';
@@ -48,7 +47,6 @@ type Candidate = 'none' | 'origin' | 'valid' | 'invalid';
  * The status light shows: dark = not linked, dim = linked but inactive, bright = link active.
  */
 export const PortView = memo(function PortView({ moduleId, port }: { moduleId: string; port: PortDef }) {
-  const m = getMaterials();
   const led = useMemo(() => new MeshBasicMaterial({ color: COLORS.off, toneMapped: false }), []);
   useEffect(() => () => led.dispose(), [led]);
 
@@ -107,10 +105,7 @@ export const PortView = memo(function PortView({ moduleId, port }: { moduleId: s
 
   return (
     <group position={[port.local.x, 0, port.local.z]} rotation={[0, yaw, 0]}>
-      {/* connector insert, contact pads, retention magnets and the two status lights (merged per material) */}
-      <mesh geometry={geos.insert} material={m.insert} castShadow />
-      <mesh geometry={geos.contacts} material={m.contact} />
-      <mesh geometry={geos.steel} material={m.steel} />
+      {/* the two status lights (the insert, pads and magnets are drawn merged per block, see ModulePortStatics) */}
       <mesh geometry={geos.lights} material={led} />
       {/* pick volume: covers the edge insert and the strip of cover next to it */}
       <mesh position={[-0.1, 0.14, 0]} userData={{ pick: { kind: 'port', moduleId, portId: port.id } }}>
